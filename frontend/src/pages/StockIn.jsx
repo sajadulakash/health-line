@@ -202,6 +202,7 @@ export default function StockIn() {
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         e.preventDefault();
+        e.stopPropagation();
         const file = item.getAsFile();
         if (file) handleImageChange(rowKey, file);
         return;
@@ -494,7 +495,7 @@ export default function StockIn() {
                   <tr
                     key={row.key}
                     onClick={() => setSelectedRow(row.key)}
-                    onPaste={(e) => handleImagePaste(row.key, e)}
+                    onPasteCapture={(e) => handleImagePaste(row.key, e)}
                     style={{
                       background: selectedRow === row.key ? '#eff6ff' : undefined,
                       transition: 'background 0.15s',
@@ -671,7 +672,8 @@ export default function StockIn() {
                           const editMed = medicineMap[row.medicine_id];
                           const existingImg = editMed?.image_url;
                           return (
-                          <tr key={row.id} onClick={() => setSelectedRow(`edit_${row.id}`)} onPaste={(e) => handleImagePaste(`edit_${row.id}`, e)} style={{ opacity: row._deleted ? 0.35 : 1, textDecoration: row._deleted ? 'line-through' : 'none', background: selectedRow === `edit_${row.id}` ? '#eff6ff' : undefined, transition: 'background 0.15s' }}>
+                          <tr key={row.id} onClick={() => setSelectedRow(`edit_${row.id}`)} onPasteCapture={(e) => handleImagePaste(`edit_${row.id}`, e)} style={{ opacity: row._deleted ? 0.35 : 1, textDecoration: row._deleted ? 'line-through' : 'none', background: selectedRow === `edit_${row.id}` ? '#eff6ff' : undefined, transition: 'background 0.15s' }}>
+
                             <td>
                               <label
                                 onDrop={(e) => handleImageDrop(`edit_${row.id}`, e)}
@@ -731,7 +733,7 @@ export default function StockIn() {
 
                         {/* New rows being added to this batch */}
                         {addRows.map((row, i) => (
-                          <tr key={row.key} onClick={() => setSelectedRow(row.key)} onPaste={(e) => handleImagePaste(row.key, e)} style={{ background: selectedRow === row.key ? '#eff6ff' : '#f0fdf4', transition: 'background 0.15s' }}>
+                          <tr key={row.key} onClick={() => setSelectedRow(row.key)} onPasteCapture={(e) => handleImagePaste(row.key, e)} style={{ background: selectedRow === row.key ? '#eff6ff' : '#f0fdf4', transition: 'background 0.15s' }}>
                             <td>
                               <label
                                 onDrop={(e) => handleImageDrop(row.key, e)}
