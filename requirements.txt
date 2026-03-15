@@ -1,0 +1,29 @@
+# FastAPI & Server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
+
+# Migrations
+alembic==1.14.1
+
+# Data Validation & Settings
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Authentication (future use)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# File/Image Handling
+python-multipart==0.0.20
+Pillow==11.1.0
+
+# Date/Time Utilities
+python-dateutil==2.9.0
+
+# Environment Variables
+python-dotenv==1.0.1
