@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives } from '../api';
+import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives, getMedicineNote, upsertMedicineNote, getAllMedicineNotes } from '../api';
 import { toast } from 'react-toastify';
-import { FiSearch, FiFilter, FiBox, FiX, FiEdit2, FiTrash2, FiCamera, FiSave, FiLayers } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiBox, FiX, FiEdit2, FiTrash2, FiCamera, FiSave, FiLayers, FiInfo } from 'react-icons/fi';
 
 const API_BASE = 'http://192.168.68.68:8765';
 
@@ -124,6 +124,7 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
     brand: medicine.brand || '',
     category: medicine.category || '',
     selling_price: '',
+    note: '',
   });
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState(null);
@@ -132,12 +133,15 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
   );
   const fileRef = useRef();
 
-  // Load current selling price from latest batch
+  // Load current selling price from latest batch + note
   useEffect(() => {
     getBatches(medicine.id).then((r) => {
       if (r.data.length > 0) {
         setForm((f) => ({ ...f, selling_price: r.data[0].selling_price || '' }));
       }
+    }).catch(() => {});
+    getMedicineNote(medicine.id).then((r) => {
+      setForm((f) => ({ ...f, note: r.data.note || '' }));
     }).catch(() => {});
   }, [medicine.id]);
 
@@ -171,6 +175,8 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
       if (!isNaN(sp) && sp >= 0) {
         await updateSellingPrice(medicine.id, sp);
       }
+      // Save note
+      await upsertMedicineNote(medicine.id, form.note);
       toast.success('Medicine updated!');
       onSaved();
       onClose();
@@ -225,6 +231,10 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
             <label style={labelSt}>Selling Price ৳ <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(applies to all batches)</span></label>
             <input type="number" step="0.01" min="0" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} style={{ ...inputSt, fontWeight: 700, color: '#16a34a' }} />
           </div>
+          <div>
+            <label style={labelSt}>Short Note <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(personal, per-user)</span></label>
+            <textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Add a short note…" rows={2} style={{ ...inputSt, resize: 'vertical', fontFamily: 'inherit' }} />
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
@@ -251,6 +261,7 @@ export default function Medicines() {
   const [altMed, setAltMed] = useState(null);          // medicine to show alternatives for
   const [altList, setAltList] = useState([]);
   const [altLoading, setAltLoading] = useState(false);
+  const [noteMap, setNoteMap] = useState({});  // { medicine_id: note_text }
 
   // Filters
   const [search, setSearch] = useState('');
@@ -258,8 +269,8 @@ export default function Medicines() {
   const [categoryFilter, setCategoryFilter] = useState('');
 
   const loadData = () =>
-    Promise.all([getMedicines(), getBatches()])
-      .then(([mRes, bRes]) => {
+    Promise.all([getMedicines(), getBatches(), getAllMedicineNotes()])
+      .then(([mRes, bRes, nRes]) => {
         setMedicines(mRes.data);
         const sm = {};
         bRes.data.forEach((b) => {
@@ -268,6 +279,7 @@ export default function Medicines() {
           }
         });
         setStockMap(sm);
+        setNoteMap(nRes.data || {});
       })
       .catch(() => toast.error('Failed to load medicines'))
       .finally(() => setLoading(false));
@@ -483,7 +495,18 @@ export default function Medicines() {
                 </div>
                 {/* Details */}
                 <div style={{ padding: '14px 14px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', lineHeight: 1.3 }}>{m.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {m.name}
+                    {noteMap[m.id] && (
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        title={noteMap[m.id]}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: '#fff7ed', color: '#ea580c', cursor: 'pointer', flexShrink: 0 }}
+                      >
+                        <FiInfo size={22} />
+                      </span>
+                    )}
+                  </div>
                   {m.brand && <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: 600 }}>{m.brand}</div>}
                   {m.generic_name && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Generic: </span>{m.generic_name}</div>}
                   {m.category && (

@@ -24,6 +24,14 @@ def list_medicines(skip: int = 0, limit: int = 10000, db: Session = Depends(get_
     return medicine_service.get_medicines(db, skip=skip, limit=limit)
 
 
+@router.get("/notes/all")
+def get_all_notes(user_id: int = 1, db: Session = Depends(get_db)):
+    """Get all notes for a user — used to show icons on medicine cards."""
+    from backend.models.medicine_note import MedicineNote
+    rows = db.query(MedicineNote).filter(MedicineNote.user_id == user_id).all()
+    return {row.medicine_id: row.note for row in rows if row.note}
+
+
 @router.get("/{medicine_id}", response_model=MedicineWithBatches)
 def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
     medicine = medicine_service.get_medicine(db, medicine_id)
@@ -102,3 +110,42 @@ def update_selling_price(
 def get_alternatives(medicine_id: int, db: Session = Depends(get_db)):
     """Get alternative medicines (same generic name or category)."""
     return medicine_service.find_alternatives(db, medicine_id)
+
+
+# ── Medicine Notes ──
+
+@router.get("/{medicine_id}/note")
+def get_note(medicine_id: int, user_id: int = 1, db: Session = Depends(get_db)):
+    """Get the note for a medicine (per user)."""
+    from backend.models.medicine_note import MedicineNote
+    row = db.query(MedicineNote).filter(
+        MedicineNote.medicine_id == medicine_id,
+        MedicineNote.user_id == user_id,
+    ).first()
+    return {"note": row.note if row else ""}
+
+
+@router.put("/{medicine_id}/note")
+def upsert_note(medicine_id: int, payload: dict, db: Session = Depends(get_db)):
+    """Create or update the note for a medicine (per user)."""
+    from backend.models.medicine_note import MedicineNote
+    user_id = payload.get("user_id", 1)
+    note_text = (payload.get("note") or "").strip()
+
+    medicine = medicine_service.get_medicine(db, medicine_id)
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+
+    row = db.query(MedicineNote).filter(
+        MedicineNote.medicine_id == medicine_id,
+        MedicineNote.user_id == user_id,
+    ).first()
+
+    if row:
+        row.note = note_text
+    else:
+        row = MedicineNote(user_id=user_id, medicine_id=medicine_id, note=note_text)
+        db.add(row)
+
+    db.commit()
+    return {"note": note_text}

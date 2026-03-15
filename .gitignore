@@ -30,3 +30,6 @@ Thumbs.db
 # Database
 *.db
 *.sqlite3
+
+# Misc
+run.txt

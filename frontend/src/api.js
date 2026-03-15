@@ -17,6 +17,10 @@ export const uploadMedicineImage = (id, formData) =>
 export const getAlternatives = (id) => API.get(`/medicines/${id}/alternatives`);
 export const updateSellingPrice = (id, price) =>
   API.put(`/medicines/${id}/selling-price`, { selling_price: price });
+export const getMedicineNote = (id) => API.get(`/medicines/${id}/note`);
+export const upsertMedicineNote = (id, note) =>
+  API.put(`/medicines/${id}/note`, { note });
+export const getAllMedicineNotes = () => API.get('/medicines/notes/all');
 
 // ── Batches ──
 export const getBatches = (medicineId) =>

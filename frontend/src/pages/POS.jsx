@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch } from '../api';
+import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes } from '../api';
 import { toast } from 'react-toastify';
 import {
   FiSearch, FiShoppingCart, FiTrash2, FiPlus,
-  FiMinus, FiUser, FiPrinter, FiX, FiTag,
+  FiMinus, FiUser, FiPrinter, FiX, FiTag, FiInfo,
 } from 'react-icons/fi';
 
 const IMG_BASE = 'http://192.168.68.68:8765';
@@ -103,6 +103,7 @@ export default function POS() {
   const [directPrice, setDirectPrice] = useState('');
   const [paying, setPaying] = useState(false);
   const [lastBill, setLastBill] = useState(null);
+  const [noteMap, setNoteMap] = useState({});
 
   // ── Third Party modal ──
   const [tpOpen, setTpOpen] = useState(false);
@@ -213,10 +214,11 @@ export default function POS() {
   };
 
   const loadData = () =>
-    Promise.all([getMedicines(), getBatches()])
-      .then(([mRes, bRes]) => {
+    Promise.all([getMedicines(), getBatches(), getAllMedicineNotes()])
+      .then(([mRes, bRes, nRes]) => {
         setMedicines(mRes.data);
         setBatches(bRes.data);
+        setNoteMap(nRes.data || {});
       })
       .catch(() => toast.error('Failed to load products'));
 
@@ -495,7 +497,18 @@ export default function POS() {
                     </div>
                     {/* Details */}
                     <div style={{ padding: '14px 14px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', lineHeight: 1.3 }}>{p.name}</div>
+                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {p.name}
+                        {noteMap[p.id] && (
+                          <span
+                            onClick={(e) => e.stopPropagation()}
+                            title={noteMap[p.id]}
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: '#fff7ed', color: '#ea580c', cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            <FiInfo size={22} />
+                          </span>
+                        )}
+                      </div>
                       {p.brand && <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: 600 }}>{p.brand}</div>}
                       {p.generic_name && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Generic: </span>{p.generic_name}</div>}
                       {p.category && (
