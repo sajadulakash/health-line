@@ -262,6 +262,8 @@ export default function Medicines() {
   const [altList, setAltList] = useState([]);
   const [altLoading, setAltLoading] = useState(false);
   const [noteMap, setNoteMap] = useState({});  // { medicine_id: note_text }
+  const [notePopup, setNotePopup] = useState(null); // medicine id whose note popup is open
+  const [notePos, setNotePos] = useState({ top: 0, left: 0 }); // popup position
 
   // Filters
   const [search, setSearch] = useState('');
@@ -354,7 +356,7 @@ export default function Medicines() {
   if (loading) return <div className="loading">Loading…</div>;
 
   return (
-    <>
+    <div onClick={() => notePopup && setNotePopup(null)}>
       {selected && <MedicineModal medicine={selected} onClose={() => setSelected(null)} />}
       {editing && <EditMedicineModal medicine={editing} onClose={() => setEditing(null)} onSaved={loadData} />}
 
@@ -499,9 +501,14 @@ export default function Medicines() {
                     {m.name}
                     {noteMap[m.id] && (
                       <span
-                        onClick={(e) => e.stopPropagation()}
-                        title={noteMap[m.id]}
-                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: '#fff7ed', color: '#ea580c', cursor: 'pointer', flexShrink: 0 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (notePopup === m.id) { setNotePopup(null); return; }
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setNotePos({ top: rect.bottom + 6, left: rect.left });
+                          setNotePopup(m.id);
+                        }}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: notePopup === m.id ? '#ea580c' : '#fff7ed', color: notePopup === m.id ? '#fff' : '#ea580c', cursor: 'pointer', flexShrink: 0 }}
                       >
                         <FiInfo size={22} />
                       </span>
@@ -544,6 +551,19 @@ export default function Medicines() {
           })}
         </div>
       )}
-    </>
+
+      {/* Note popup - fixed position near the icon */}
+      {notePopup && noteMap[notePopup] && (
+        <>
+          <div onClick={() => setNotePopup(null)} style={{ position: 'fixed', inset: 0, zIndex: 1199 }} />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: 'fixed', top: notePos.top, left: notePos.left, zIndex: 1200, background: 'rgba(15, 18, 24, 0.50)', color: '#fff', fontSize: '0.85rem', padding: '10px 16px', borderRadius: 10, whiteSpace: 'pre-wrap', minWidth: 200, maxWidth: 320, boxShadow: '0 6px 24px rgba(0, 0, 0, 0.25)', lineHeight: 1.5, fontWeight: 400, backdropFilter: 'blur(8px)' }}
+          >
+            {noteMap[notePopup]}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

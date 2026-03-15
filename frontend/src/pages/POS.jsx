@@ -104,6 +104,8 @@ export default function POS() {
   const [paying, setPaying] = useState(false);
   const [lastBill, setLastBill] = useState(null);
   const [noteMap, setNoteMap] = useState({});
+  const [noteHover, setNoteHover] = useState(null);
+  const [notePos, setNotePos] = useState({ top: 0, left: 0 });
 
   // ── Third Party modal ──
   const [tpOpen, setTpOpen] = useState(false);
@@ -502,7 +504,12 @@ export default function POS() {
                         {noteMap[p.id] && (
                           <span
                             onClick={(e) => e.stopPropagation()}
-                            title={noteMap[p.id]}
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setNotePos({ top: rect.bottom + 6, left: rect.left });
+                              setNoteHover(p.id);
+                            }}
+                            onMouseLeave={() => setNoteHover(null)}
                             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: '#fff7ed', color: '#ea580c', cursor: 'pointer', flexShrink: 0 }}
                           >
                             <FiInfo size={22} />
@@ -893,6 +900,15 @@ export default function POS() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Note hover tooltip */}
+      {noteHover && noteMap[noteHover] && (
+        <div
+          style={{ position: 'fixed', top: notePos.top, left: notePos.left, zIndex: 1200, background: 'rgba(36, 39, 44, 0.75)', color: '#fff', fontSize: '0.85rem', padding: '10px 16px', borderRadius: 10, whiteSpace: 'pre-wrap', minWidth: 200, maxWidth: 320, boxShadow: '0 6px 24px rgba(0,0,0,0.25)', lineHeight: 1.5, fontWeight: 400, backdropFilter: 'blur(8px)', pointerEvents: 'none' }}
+        >
+          {noteMap[noteHover]}
         </div>
       )}
     </div>
