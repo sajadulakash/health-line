@@ -128,6 +128,7 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
     note: '',
   });
   const [saving, setSaving] = useState(false);
+  const originalNote = useRef(null); // track DB value to avoid blind overwrites
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(
     medicine.image_url ? `${API_BASE}${medicine.image_url}` : null
@@ -142,7 +143,9 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
       }
     }).catch(() => {});
     getMedicineNote(medicine.id).then((r) => {
-      setForm((f) => ({ ...f, note: r.data.note || '' }));
+      const loaded = r.data.note || '';
+      originalNote.current = loaded;
+      setForm((f) => ({ ...f, note: loaded }));
     }).catch(() => {});
   }, [medicine.id]);
 
@@ -176,8 +179,10 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
       if (!isNaN(sp) && sp >= 0) {
         await updateSellingPrice(medicine.id, sp);
       }
-      // Save note
-      await upsertMedicineNote(medicine.id, form.note);
+      // Save note only if it was changed
+      if (form.note !== originalNote.current) {
+        await upsertMedicineNote(medicine.id, form.note);
+      }
       toast.success('Medicine updated!');
       onSaved();
       onClose();
