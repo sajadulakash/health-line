@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { getMedicines, createMedicine, createBatch, getBatches, updateBatch, deleteBatch, uploadMedicineImage } from '../api';
+import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, deleteBatch, uploadMedicineImage } from '../api';
 import { toast } from 'react-toastify';
 import { FiPlus, FiTrash2, FiPackage, FiCamera, FiEdit2, FiSave, FiX } from 'react-icons/fi';
 
@@ -377,6 +377,16 @@ export default function StockIn() {
     });
   };
 
+  const handleEditRowNameChange = (i, val) => {
+    const found = medicines.find((m) => m.name.toLowerCase() === val.toLowerCase());
+    updateEditRow(i, {
+      medicine_name: val,
+      generic_name: found ? (found.generic_name || '') : editRows[i].generic_name,
+      brand: found ? (found.brand || '') : editRows[i].brand,
+      category: found ? (found.category || '') : editRows[i].category,
+    });
+  };
+
   const saveEdits = async () => {
     setSavingEdit(true);
     let ok = 0, fail = 0;
@@ -389,6 +399,13 @@ export default function StockIn() {
     // 2) Update changed rows
     for (const row of editRows.filter((r) => !r._deleted)) {
       try {
+        // Update medicine details if changed
+        await updateMedicine(row.medicine_id, {
+          name: (row.medicine_name || '').trim() || undefined,
+          generic_name: (row.generic_name || '').trim() || null,
+          brand: (row.brand || '').trim() || null,
+          category: (row.category || '').trim() || null,
+        });
         await updateBatch(row.id, {
           quantity: Number(row.quantity),
           initial_quantity: Number(row.quantity),
@@ -696,10 +713,42 @@ export default function StockIn() {
                                 <input type="file" accept="image/*" onChange={(e) => handleImageChange(`edit_${row.id}`, e.target.files[0])} style={{ display: 'none' }} />
                               </label>
                             </td>
-                            <td style={{ fontWeight: 600 }}>{row.medicine_name}</td>
-                            <td>{row.brand || '—'}</td>
-                            <td>{row.generic_name || '—'}</td>
-                            <td>{row.category || '—'}</td>
+                            <td>
+                              <AutoSuggest
+                                value={row.medicine_name}
+                                onChange={(val) => handleEditRowNameChange(i, val)}
+                                suggestions={nameList}
+                                placeholder="Medicine…"
+                                style={{ ...inputStyle, width: '100%', minWidth: 130, fontWeight: 600 }}
+                              />
+                            </td>
+                            <td>
+                              <AutoSuggest
+                                value={row.brand || ''}
+                                onChange={(val) => updateEditRow(i, { brand: val })}
+                                suggestions={brandList}
+                                placeholder="Brand…"
+                                style={{ ...inputStyle, width: '100%', minWidth: 80 }}
+                              />
+                            </td>
+                            <td>
+                              <AutoSuggest
+                                value={row.generic_name || ''}
+                                onChange={(val) => updateEditRow(i, { generic_name: val })}
+                                suggestions={genericList}
+                                placeholder="Generic…"
+                                style={{ ...inputStyle, width: '100%', minWidth: 90 }}
+                              />
+                            </td>
+                            <td>
+                              <AutoSuggest
+                                value={row.category || ''}
+                                onChange={(val) => updateEditRow(i, { category: val })}
+                                suggestions={categoryList}
+                                placeholder="Category…"
+                                style={{ ...inputStyle, width: '100%', minWidth: 80 }}
+                              />
+                            </td>
                             <td>
                               <input type="number" min="0" value={row.quantity} onChange={(e) => updateEditRow(i, { quantity: e.target.value })} disabled={row._deleted} style={{ ...inputStyle, width: 65 }} />
                             </td>

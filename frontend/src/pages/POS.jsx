@@ -344,18 +344,27 @@ export default function POS() {
     setPaying(true);
 
     try {
-      // Distribute discount proportionally across items based on their share of subtotal
-      const discountRatio = subtotal > 0 ? totalDiscount / subtotal : 0;
+      // Compute exact line totals that sum to payable
+      const items = [];
+      let allocated = 0;
+      for (let i = 0; i < cart.length; i++) {
+        const item = cart[i];
+        let lineTotal;
+        if (i === cart.length - 1) {
+          lineTotal = parseFloat((payable - allocated).toFixed(2));
+        } else {
+          lineTotal = parseFloat((payable * item.qty * item.unit_price / subtotal).toFixed(2));
+        }
+        allocated += lineTotal;
+        items.push({
+          batch_id: item.batch_id,
+          quantity_sold: item.qty,
+          sale_price: lineTotal,
+        });
+      }
       await createSaleOrder({
         discount_pct: parseFloat(effectivePct.toFixed(2)),
-        items: cart.map((item) => {
-          const discountedUnitPrice = item.unit_price * (1 - discountRatio);
-          return {
-            batch_id: item.batch_id,
-            quantity_sold: item.qty,
-            sale_price: parseFloat(discountedUnitPrice.toFixed(2)),
-          };
-        }),
+        items,
       });
 
       toast.success(`${cart.length} item(s) sold successfully!`);

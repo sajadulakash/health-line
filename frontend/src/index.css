@@ -120,3 +120,8 @@ table tr:hover { background: #f8fafc; }
 .loading { text-align: center; padding: 40px; color: var(--text-light); }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state svg { font-size: 3rem; margin-bottom: 12px; opacity: 0.3; }
+
+/* Hide number input spinner arrows */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }

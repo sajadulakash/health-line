@@ -57,6 +57,10 @@ def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
         items = []
         order_buy = 0
         order_sell = 0
+        # Determine if sale_price is a line total (POS with discount) or per-unit (StockOut)
+        discount_pct = float(order.discount_pct or 0)
+        is_line_total = discount_pct > 0
+
         for sale in (order.items or []):
             qty = sale.quantity_sold or 0
             batch = batch_cache.get(sale.batch_id)
@@ -66,9 +70,14 @@ def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
                 buy_unit = float(batch.purchase_price or 0) / original_qty if original_qty > 0 else 0
             else:
                 buy_unit = 0
-            sell_unit = float(sale.sale_price or 0)
+            sale_price_val = float(sale.sale_price or 0)
+            if is_line_total:
+                sell_total = sale_price_val
+                sell_unit = sell_total / qty if qty > 0 else 0
+            else:
+                sell_unit = sale_price_val
+                sell_total = sell_unit * qty
             buy_total = buy_unit * qty
-            sell_total = sell_unit * qty
             profit = sell_total - buy_total
             order_buy += buy_total
             order_sell += sell_total
@@ -79,7 +88,7 @@ def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
                 "batch_number": batch.batch_number if batch else "—",
                 "quantity": qty,
                 "buying_price": round(buy_unit, 2),
-                "selling_price": sell_unit,
+                "selling_price": round(sell_unit, 2),
                 "total_buying": round(buy_total, 2),
                 "total_selling": round(sell_total, 2),
                 "profit": round(profit, 2),

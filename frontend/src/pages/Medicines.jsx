@@ -80,7 +80,7 @@ function MedicineModal({ medicine, onClose }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['Batch #', 'Current Qty', 'Total Sold', 'Purchase ৳', 'Selling ৳', 'Expires'].map((h) => (
+                  {['Batch #', 'Current Qty', 'Total Sold', 'Purchase ৳', 'Unit Price ৳', 'Selling ৳', 'Expires'].map((h) => (
                     <th key={h} style={{ padding: '9px 12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
                   ))}
                 </tr>
@@ -95,6 +95,7 @@ function MedicineModal({ medicine, onClose }) {
                       <td style={{ padding: '10px 12px', fontWeight: 700, color: (b.quantity || 0) > 0 ? '#16a34a' : '#dc2626' }}>{b.quantity ?? 0}</td>
                       <td style={{ padding: '10px 12px', fontWeight: 600, color: '#f59e0b' }}>{sold}</td>
                       <td style={{ padding: '10px 12px', color: '#475569' }}>{b.purchase_price}</td>
+                      <td style={{ padding: '10px 12px', color: '#475569', fontWeight: 600 }}>{(b.initial_quantity || b.quantity) && b.purchase_price && Number(b.initial_quantity || b.quantity) > 0 ? (Number(b.purchase_price) / Number(b.initial_quantity || b.quantity)).toFixed(2) : '—'}</td>
                       <td style={{ padding: '10px 12px', color: '#475569' }}>{b.selling_price}</td>
                       <td style={{ padding: '10px 12px' }}>
                         {b.expiration_date ? (
