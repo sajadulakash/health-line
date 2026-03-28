@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from backend.database import get_db
 from backend.services import analytics_service
@@ -21,11 +21,13 @@ def top_selling(
 
 @router.get("/profit-report")
 def profit_report(
-    period: str = Query("daily", description="daily, weekly, or monthly"),
+    period: str = Query("daily", description="daily, weekly, monthly, or custom"),
+    start_date: Optional[str] = Query(None, description="ISO date YYYY-MM-DD (used when period=custom)"),
+    end_date: Optional[str] = Query(None, description="ISO date YYYY-MM-DD (used when period=custom)"),
     db: Session = Depends(get_db),
 ):
     """Get profit report for a given period."""
-    return analytics_service.get_profit_report(db, period=period)
+    return analytics_service.get_profit_report(db, period=period, start_date=start_date, end_date=end_date)
 
 
 @router.get("/expiring-soon", response_model=List[BatchResponse])

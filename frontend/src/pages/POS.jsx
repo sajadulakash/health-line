@@ -3,7 +3,7 @@ import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch,
 import { toast } from 'react-toastify';
 import {
   FiSearch, FiShoppingCart, FiTrash2, FiPlus,
-  FiMinus, FiUser, FiPrinter, FiX, FiTag, FiInfo,
+  FiMinus, FiPrinter, FiX, FiTag, FiInfo,
 } from 'react-icons/fi';
 
 const IMG_BASE = 'http://192.168.68.68:8765';
@@ -53,7 +53,7 @@ const billHtml = (bill) => `
   <div class="meta">
     <span><strong>Bill No:</strong> ${bill.billNo}</span>
     <span><strong>Date:</strong> ${bill.date}</span>
-    ${bill.customer ? `<span><strong>Customer:</strong> ${bill.customer}</span>` : ''}
+
   </div>
   <table>
     <thead>
@@ -98,7 +98,6 @@ export default function POS() {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
-  const [customer, setCustomer] = useState('');
   const [discountPct, setDiscountPct] = useState('');
   const [directPrice, setDirectPrice] = useState('');
   const [paying, setPaying] = useState(false);
@@ -241,11 +240,12 @@ export default function POS() {
       .map((m) => {
         const batch = bestBatch(batchByMed[m.id] || []);
         if (!batch) return null;
+        const totalStock = (batchByMed[m.id] || []).reduce((sum, b) => sum + (b.quantity || 0), 0);
         return {
           ...m,
           batch,
           sellingPrice: parseFloat(batch.selling_price) || 0,
-          available: batch.quantity,
+          available: totalStock,
         };
       })
       .filter(Boolean),
@@ -323,7 +323,7 @@ export default function POS() {
   const afterPct = subtotal - discountFromPct;
   const directVal = directPrice !== '' ? parseFloat(directPrice) : NaN;
   const extraDiscount = !isNaN(directVal) ? (afterPct - directVal) : 0;
-  const totalDiscount = Math.max(Math.min(discountFromPct + extraDiscount, subtotal), 0);
+  const totalDiscount = Math.min(discountFromPct + extraDiscount, subtotal);
   const payable = subtotal - totalDiscount;
   const effectivePct = subtotal > 0 ? (totalDiscount / subtotal * 100) : 0;
 
@@ -370,7 +370,6 @@ export default function POS() {
       toast.success(`${cart.length} item(s) sold successfully!`);
       const bill = {
         items: cart,
-        customer,
         subtotal,
         discountPct: effectivePct,
         discountAmount: totalDiscount,
@@ -380,7 +379,6 @@ export default function POS() {
       };
       setLastBill(bill);
       setCart([]);
-      setCustomer('');
       setDiscountPct('');
       setDirectPrice('');
       loadData(); // refresh stock
@@ -432,12 +430,6 @@ export default function POS() {
             <option value="">All Categories</option>
             {categories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-        </div>
-
-        <div style={{ ...iconBox, flex: '1 1 180px' }}>
-          <FiUser color="#94a3b8" size={15} />
-          <input value={customer} onChange={(e) => setCustomer(e.target.value)}
-            placeholder="Customer name (optional)" style={topInputStyle} />
         </div>
 
         <div style={{ background: '#eff6ff', color: '#2563eb', borderRadius: 9, padding: '10px 16px', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, border: '1px solid #bfdbfe' }}>
@@ -647,7 +639,7 @@ export default function POS() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', marginBottom: 6, color: '#475569' }}>
               <span>Direct Price ৳</span>
               <input
-                type="number" min="0" max={afterPct} step="0.01"
+                type="number" min="0" step="0.01"
                 value={directPrice}
                 onChange={(e) => handleDirectPriceChange(e.target.value)}
                 placeholder={afterPct.toFixed(2)}
@@ -656,10 +648,10 @@ export default function POS() {
             </div>
 
             {/* Total discount summary */}
-            {totalDiscount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 8, color: '#dc2626', background: '#fef2f2', padding: '5px 8px', borderRadius: 6 }}>
-                <span>Total Discount ({effectivePct.toFixed(1)}%)</span>
-                <span>−৳{totalDiscount.toFixed(2)}</span>
+            {totalDiscount !== 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 8, color: totalDiscount > 0 ? '#dc2626' : '#16a34a', background: totalDiscount > 0 ? '#fef2f2' : '#f0fdf4', padding: '5px 8px', borderRadius: 6 }}>
+                <span>{totalDiscount > 0 ? `Total Discount (${effectivePct.toFixed(1)}%)` : `Surcharge (${Math.abs(effectivePct).toFixed(1)}%)`}</span>
+                <span>{totalDiscount > 0 ? `−৳${totalDiscount.toFixed(2)}` : `+৳${Math.abs(totalDiscount).toFixed(2)}`}</span>
               </div>
             )}
 
@@ -845,11 +837,6 @@ export default function POS() {
               <div style={{ color: '#64748b', fontSize: '0.82rem' }}>
                 {lastBill.billNo} &nbsp;·&nbsp; {lastBill.date}
               </div>
-              {lastBill.customer && (
-                <div style={{ marginTop: 6, fontSize: '0.84rem', color: '#475569' }}>
-                  Customer: <strong>{lastBill.customer}</strong>
-                </div>
-              )}
             </div>
 
             {/* Items table */}

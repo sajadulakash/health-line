@@ -10,23 +10,38 @@ from backend.models.batch import Batch
 from backend.models.medicine import Medicine
 
 
-def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
+def get_profit_report(
+    db: Session,
+    period: str = "daily",
+    start_date: str = None,
+    end_date: str = None,
+) -> Dict[str, Any]:
     """
-    Get profit report for a given period: daily, weekly, monthly.
+    Get profit report for a given period: daily, weekly, monthly, or custom.
+    For custom, pass start_date and end_date as ISO date strings (YYYY-MM-DD).
     Returns summary + orders with items grouped by sale_order_id.
     """
     now = datetime.now()
-    if period == "daily":
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif period == "weekly":
-        start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    else:  # monthly
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if period == "custom" and start_date:
+        start = datetime.fromisoformat(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = (
+            datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59, microsecond=999999)
+            if end_date
+            else now
+        )
+    else:
+        if period == "daily":
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif period == "weekly":
+            start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        else:  # monthly
+            start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = now
 
     # Get sale orders in this period
     orders = (
         db.query(SaleOrder)
-        .filter(SaleOrder.created_at >= start)
+        .filter(SaleOrder.created_at >= start, SaleOrder.created_at <= end)
         .order_by(SaleOrder.created_at.desc())
         .all()
     )
@@ -57,9 +72,9 @@ def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
         items = []
         order_buy = 0
         order_sell = 0
-        # Determine if sale_price is a line total (POS with discount) or per-unit (StockOut)
+        # sale_price is always stored as the line total (qty × unit price),
+        # for both POS and StockOut orders.
         discount_pct = float(order.discount_pct or 0)
-        is_line_total = discount_pct > 0
 
         for sale in (order.items or []):
             qty = sale.quantity_sold or 0
@@ -70,13 +85,8 @@ def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
                 buy_unit = float(batch.purchase_price or 0) / original_qty if original_qty > 0 else 0
             else:
                 buy_unit = 0
-            sale_price_val = float(sale.sale_price or 0)
-            if is_line_total:
-                sell_total = sale_price_val
-                sell_unit = sell_total / qty if qty > 0 else 0
-            else:
-                sell_unit = sale_price_val
-                sell_total = sell_unit * qty
+            sell_total = float(sale.sale_price or 0)
+            sell_unit = sell_total / qty if qty > 0 else 0
             buy_total = buy_unit * qty
             profit = sell_total - buy_total
             order_buy += buy_total
@@ -109,6 +119,7 @@ def get_profit_report(db: Session, period: str = "daily") -> Dict[str, Any]:
     return {
         "period": period,
         "start": start.isoformat(),
+        "end": end.isoformat(),
         "total_buying": round(total_buying, 2),
         "total_selling": round(total_selling, 2),
         "total_profit": round(total_selling - total_buying, 2),

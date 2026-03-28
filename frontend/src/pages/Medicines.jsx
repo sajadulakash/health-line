@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives, getMedicineNote, upsertMedicineNote, getAllMedicineNotes } from '../api';
 import { toast } from 'react-toastify';
 import { FiSearch, FiFilter, FiBox, FiX, FiEdit2, FiTrash2, FiCamera, FiSave, FiLayers, FiInfo } from 'react-icons/fi';
@@ -275,6 +275,9 @@ export default function Medicines() {
   const [search, setSearch] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [stockFilter, setStockFilter] = useState('');   // '' | 'out_of_stock' | 'low_stock'
+  const [stockThreshold, setStockThreshold] = useState(100);
+  const deferredThreshold = useDeferredValue(stockThreshold);
 
   const loadData = () =>
     Promise.all([getMedicines(), getBatches(), getAllMedicineNotes()])
@@ -328,11 +331,16 @@ export default function Medicines() {
         (m.category || '').toLowerCase().includes(q);
       const matchBrand = !brandFilter || m.brand === brandFilter;
       const matchCategory = !categoryFilter || m.category === categoryFilter;
-      return matchSearch && matchBrand && matchCategory;
+      const stock = stockMap[m.id] || 0;
+      const matchStock =
+        !stockFilter ||
+        (stockFilter === 'out_of_stock' && stock === 0) ||
+        (stockFilter === 'low_stock' && stock < Number(deferredThreshold));
+      return matchSearch && matchBrand && matchCategory && matchStock;
     });
-  }, [medicines, search, brandFilter, categoryFilter]);
+  }, [medicines, search, brandFilter, categoryFilter, stockFilter, deferredThreshold, stockMap]);
 
-  const clearFilters = () => { setSearch(''); setBrandFilter(''); setCategoryFilter(''); };
+  const clearFilters = () => { setSearch(''); setBrandFilter(''); setCategoryFilter(''); setStockFilter(''); setStockThreshold(100); };
 
   const openAlternatives = async (med) => {
     setAltMed(med);
@@ -469,7 +477,24 @@ export default function Medicines() {
           <option value="">All Categories</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        {(search || brandFilter || categoryFilter) && (
+        <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} style={{ padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', background: '#fff', minWidth: 140 }}>
+          <option value="">All Stock</option>
+          <option value="out_of_stock">Out of Stock</option>
+          <option value="low_stock">Low Stock (&lt; N)</option>
+        </select>
+        {stockFilter === 'low_stock' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>N =</span>
+            <input
+              type="number"
+              min="1"
+              value={stockThreshold}
+              onChange={(e) => setStockThreshold(e.target.value === '' ? '' : Math.max(1, Number(e.target.value)))}
+              style={{ width: 72, padding: '7px 8px', border: '1px solid #fbbf24', borderRadius: 6, fontSize: '0.85rem', outline: 'none', background: '#fffbeb', fontWeight: 700, color: '#92400e' }}
+            />
+          </div>
+        )}
+        {(search || brandFilter || categoryFilter || stockFilter) && (
           <button onClick={clearFilters} className="btn btn-outline btn-sm">✕ Clear</button>
         )}
       </div>

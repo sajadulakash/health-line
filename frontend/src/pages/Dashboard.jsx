@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMedicines, getBatches, getProfitReport } from '../api';
-import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiCalendar } from 'react-icons/fi';
 
 const PERIODS = [
   { key: 'daily', label: 'Today' },
@@ -136,6 +136,159 @@ function ProfitSection({ period, label }) {
 const thStyle = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3 };
 const tdStyle = { padding: '7px 10px' };
 
+/* ─── Custom Date Range Section ─────────────────────────────── */
+function CustomRangeSection() {
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState(today);
+  const [to, setTo] = useState(today);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [applied, setApplied] = useState(false);
+
+  const handleApply = () => {
+    if (!from || !to) return;
+    setLoading(true);
+    setApplied(true);
+    getProfitReport('custom', from, to)
+      .then((res) => { setData(res.data); setExpanded(false); })
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  };
+
+  const fmt = (v) => `৳${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  const profitColor = data && data.total_profit >= 0 ? '#16a34a' : '#dc2626';
+  const orders = data?.orders || [];
+  const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      {/* Header with date pickers */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: applied && data ? 14 : 0 }}>
+        <FiCalendar size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
+        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>Custom Range</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4, flexWrap: 'wrap' }}>
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+            style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', outline: 'none', background: '#f8fafc' }}
+          />
+          <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>to</span>
+          <input
+            type="date"
+            value={to}
+            min={from}
+            max={today}
+            onChange={(e) => setTo(e.target.value)}
+            style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', outline: 'none', background: '#f8fafc' }}
+          />
+          <button
+            onClick={handleApply}
+            disabled={loading || !from || !to}
+            style={{ padding: '7px 18px', border: 'none', borderRadius: 6, background: loading ? '#cbd5e1' : '#6366f1', color: '#fff', fontWeight: 700, fontSize: '0.83rem', cursor: loading ? 'not-allowed' : 'pointer' }}
+          >
+            {loading ? 'Loading…' : 'Apply'}
+          </button>
+        </div>
+      </div>
+
+      {/* Results */}
+      {applied && data && (
+        <>
+          <div
+            onClick={() => setExpanded(!expanded)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', borderTop: '1px solid #f1f5f9', paddingTop: 14 }}
+          >
+            <h3 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {fmtDate(from)} — {fmtDate(to)}
+              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>({data.order_count} order{data.order_count !== 1 ? 's' : ''})</span>
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Buying</div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(data.total_buying)}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Selling</div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(data.total_selling)}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Profit</div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: profitColor }}>{fmt(data.total_profit)}</div>
+              </div>
+              <span style={{ color: '#94a3b8', marginLeft: 4 }}>{expanded ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}</span>
+            </div>
+          </div>
+
+          {expanded && (
+            <div style={{ marginTop: 16 }}>
+              {orders.length === 0 ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No orders in this date range.</div>
+              ) : (
+                orders.map((order) => {
+                  const items = order.items || [];
+                  const orderDate = order.created_at
+                    ? new Date(order.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : '';
+                  return (
+                    <div key={order.order_id} style={{ marginBottom: 14, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+                      <div style={{ background: '#f8fafc', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#334155' }}>
+                          Sale #{order.order_number || order.order_id}
+                          <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 8, fontSize: '0.78rem' }}>{orderDate}</span>
+                          <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 8, fontSize: '0.78rem' }}>({items.length} item{items.length !== 1 ? 's' : ''})</span>
+                          {order.discount_pct > 0 && (
+                            <span style={{ marginLeft: 8, fontSize: '0.75rem', fontWeight: 600, color: '#dc2626', background: '#fef2f2', padding: '2px 8px', borderRadius: 10 }}>{order.discount_pct}% off</span>
+                          )}
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: '0.85rem', color: order.profit >= 0 ? '#16a34a' : '#dc2626' }}>Profit: {fmt(order.profit)}</span>
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr style={{ background: '#f1f5f9' }}>
+                            <th style={thStyle}>Medicine</th>
+                            <th style={thStyle}>Batch</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Qty</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Buy ৳</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Sell ৳</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Profit ৳</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((it, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={tdStyle}>{it.medicine_name}{it.brand ? <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}> — {it.brand}</span> : ''}</td>
+                              <td style={tdStyle}>{it.batch_number || '—'}</td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}>{it.quantity}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(it.total_buying)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(it.total_selling)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: it.profit >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(it.profit)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: '#f8fafc', fontWeight: 600 }}>
+                            <td colSpan={3} style={{ ...tdStyle, textAlign: 'right', color: '#64748b' }}>Totals</td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(order.total_buying)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(order.total_selling)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: order.profit >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(order.profit)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState({ medicines: 0, batches: 0 });
 
@@ -173,6 +326,7 @@ export default function Dashboard() {
       {PERIODS.map((p) => (
         <ProfitSection key={p.key} period={p.key} label={p.label} />
       ))}
+      { <CustomRangeSection /> }
     </>
   );
 }

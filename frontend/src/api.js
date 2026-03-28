@@ -37,12 +37,13 @@ export const getSales = () => API.get('/sales/');
 export const createSaleOrder = (data) => API.post('/sales/orders', data);
 export const getSaleOrders = () => API.get('/sales/orders');
 export const deleteSaleOrder = (id) => API.delete(`/sales/orders/${id}`);
+export const updateSaleOrder = (id, data) => API.put(`/sales/orders/${id}`, data);
 
 // ── Analytics ──
 export const getTopSelling = (limit = 20) =>
   API.get('/analytics/top-selling', { params: { limit } });
-export const getProfitReport = (period = 'daily') =>
-  API.get('/analytics/profit-report', { params: { period } });
+export const getProfitReport = (period = 'daily', startDate = null, endDate = null) =>
+  API.get('/analytics/profit-report', { params: { period, ...(startDate && { start_date: startDate }), ...(endDate && { end_date: endDate }) } });
 
 // ── Search ──
 export const searchMedicines = (q) => API.get('/search/', { params: { q } });

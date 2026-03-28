@@ -37,6 +37,10 @@ class SaleOrderCreate(BaseModel):
     discount_pct: Optional[Decimal] = Decimal("0")
 
 
+class SaleOrderUpdate(BaseModel):
+    items: List[SaleOrderItemCreate]
+
+
 class SaleOrderItemResponse(BaseModel):
     id: int
     batch_id: Optional[int] = None

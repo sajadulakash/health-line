@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSaleOrders, createSaleOrder, deleteSaleOrder, getBatches, getMedicines } from '../api';
+import { getSaleOrders, createSaleOrder, deleteSaleOrder, updateSaleOrder, getBatches, getMedicines } from '../api';
 import { toast } from 'react-toastify';
-import { FiPlus, FiTrash2, FiSearch, FiX, FiShoppingCart } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiSearch, FiX, FiShoppingCart, FiEdit2 } from 'react-icons/fi';
 
 const emptyRow = () => ({
   key: Date.now() + Math.random(),
@@ -30,6 +30,68 @@ const loadDraft = () => {
   } catch {}
   return { rows: [emptyRow()] };
 };
+
+/* ── Build an edit row from an existing sale item ── */
+const initEditRow = (item, batches, medicineList) => {
+  const batch = batches.find((b) => b.id === item.batch_id);
+  const med = batch ? medicineList.find((m) => m.id === batch.medicine_id) : null;
+  return {
+    key: Date.now() + Math.random(),
+    locked: true,
+    batch_id: item.batch_id,
+    medicine_name: med?.name || '—',
+    brand: med?.brand || '',
+    batch_number: batch?.batch_number || '?',
+    unit_selling_price: Number(batch?.selling_price ?? 0),
+    quantity_sold: String(item.quantity_sold || ''),
+    sale_price: String(item.sale_price || ''),
+    // unused in locked rows
+    searchQuery: '',
+    showSuggestions: false,
+    selectedMedicine: null,
+  };
+};
+
+/* ── Read-only medicine/batch row with editable qty & price ── */
+function LockedEditRow({ row, index, onUpdate, onRemove }) {
+  const inputStyle = { padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.85rem', width: '100%' };
+  return (
+    <tr>
+      <td style={{ color: '#94a3b8', fontWeight: 600, padding: '8px 12px' }}>{index + 1}</td>
+      <td style={{ padding: '8px 8px', minWidth: 180 }}>
+        <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.85rem' }}>{row.medicine_name}</span>
+        {row.brand && <span style={{ color: '#2563eb', marginLeft: 6, fontSize: '0.75rem' }}>{row.brand}</span>}
+      </td>
+      <td style={{ padding: '8px 8px', fontSize: '0.85rem', color: '#475569' }}>#{row.batch_number}</td>
+      <td style={{ padding: '8px 8px', width: 110 }}>
+        <input
+          type="number" min="1"
+          value={row.quantity_sold}
+          onChange={(e) => {
+            const qty = e.target.value;
+            const total = qty && row.unit_selling_price > 0 ? (Number(qty) * row.unit_selling_price).toFixed(2) : '';
+            onUpdate({ quantity_sold: qty, sale_price: total });
+          }}
+          style={inputStyle}
+        />
+      </td>
+      <td style={{ padding: '8px 8px', width: 130 }}>
+        <input
+          type="number" step="0.01"
+          value={row.sale_price}
+          onChange={(e) => onUpdate({ sale_price: e.target.value })}
+          style={inputStyle}
+        />
+      </td>
+      <td style={{ padding: '8px 8px', width: 40, textAlign: 'center' }}>
+        <button type="button" onClick={onRemove}
+          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626' }}>
+          <FiTrash2 size={15} />
+        </button>
+      </td>
+    </tr>
+  );
+}
 
 /* ── Inline search+batch picker for one row ── */
 function BatchPicker({ row, index, batches, medicineList, onUpdate, onRemove, canRemove }) {
@@ -72,7 +134,10 @@ function BatchPicker({ row, index, batches, medicineList, onUpdate, onRemove, ca
 
   const handleBatchSelect = (batchId) => {
     const batch = batches.find((b) => b.id === Number(batchId));
-    onUpdate({ batch_id: batchId, sale_price: batch?.selling_price ?? '' });
+    const unitPrice = Number(batch?.selling_price ?? 0);
+    const qty = Number(row.quantity_sold) || 0;
+    const total = qty > 0 && unitPrice > 0 ? (qty * unitPrice).toFixed(2) : '';
+    onUpdate({ batch_id: batchId, sale_price: total });
   };
 
   // close suggestions on outside click
@@ -162,14 +227,20 @@ function BatchPicker({ row, index, batches, medicineList, onUpdate, onRemove, ca
         <input
           type="number" min="1"
           value={row.quantity_sold}
-          onChange={(e) => onUpdate({ quantity_sold: e.target.value })}
+          onChange={(e) => {
+            const qty = e.target.value;
+            const batch = batches.find((b) => b.id === Number(row.batch_id));
+            const unitPrice = Number(batch?.selling_price ?? 0);
+            const total = qty && unitPrice > 0 ? (Number(qty) * unitPrice).toFixed(2) : '';
+            onUpdate({ quantity_sold: qty, sale_price: total });
+          }}
           required
           disabled={!row.batch_id}
           style={{ ...inputStyle, opacity: row.batch_id ? 1 : 0.4 }}
         />
       </td>
 
-      {/* Sale price */}
+      {/* Total price */}
       <td style={{ padding: '8px 8px', width: 130 }}>
         <input
           type="number" step="0.01"
@@ -201,6 +272,11 @@ export default function StockOut() {
   const [medicineMap, setMedicineMap] = useState({});
   const [rows, setRows] = useState(() => loadDraft().rows);
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit state
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editRows, setEditRows] = useState([]);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Persist draft on every change
   useEffect(() => {
@@ -237,6 +313,47 @@ export default function StockOut() {
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to delete sale order');
     }
+  };
+
+  const handleEditStart = (order) => {
+    setEditRows(order.items.map((item) => initEditRow(item, batches, medicineList)));
+    setEditingOrder(order);
+  };
+
+  const handleEditCancel = () => {
+    setEditingOrder(null);
+    setEditRows([]);
+  };
+
+  const updateEditRow = (index, updates) =>
+    setEditRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...updates } : r)));
+
+  const addEditRow = () => setEditRows((prev) => [...prev, emptyRow()]);
+  const removeEditRow = (index) => setEditRows((prev) => prev.filter((_, i) => i !== index));
+
+  const handleSaveEdit = async () => {
+    if (editRows.length === 0) { toast.error('Add at least one item'); return; }
+    if (editRows.some((r) => !r.batch_id || !r.quantity_sold || !r.sale_price)) {
+      toast.error('Please complete all rows — medicine, batch, quantity, and price');
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      await updateSaleOrder(editingOrder.id, {
+        items: editRows.map((row) => ({
+          batch_id: Number(row.batch_id),
+          quantity_sold: Number(row.quantity_sold),
+          sale_price: Number(row.sale_price),
+        })),
+      });
+      toast.success('Sale order updated — inventory adjusted');
+      setEditingOrder(null);
+      setEditRows([]);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update sale order');
+    }
+    setEditSubmitting(false);
   };
 
   const handleSubmit = async (e) => {
@@ -289,7 +406,7 @@ export default function StockOut() {
                     <th style={{ padding: '9px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Medicine *</th>
                     <th style={{ padding: '9px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Batch *</th>
                     <th style={{ padding: '9px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', width: 110 }}>Qty Sold *</th>
-                    <th style={{ padding: '9px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', width: 130 }}>Sale Price ৳ *</th>
+                    <th style={{ padding: '9px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', width: 130 }}>Total Price ৳ *</th>
                     <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
@@ -331,7 +448,7 @@ export default function StockOut() {
         return orders.map((order) => {
           const items = order.items || [];
           const totalQty = items.reduce((s, i) => s + (i.quantity_sold || 0), 0);
-          const totalRevenue = items.reduce((s, i) => s + ((i.quantity_sold || 0) * (parseFloat(i.sale_price) || 0)), 0);
+          const totalRevenue = items.reduce((s, i) => s + (parseFloat(i.sale_price) || 0), 0);
           const orderDate = order.created_at
             ? new Date(order.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
             : '';
@@ -339,6 +456,82 @@ export default function StockOut() {
             ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : '';
 
+          // ── Edit mode ──
+          if (editingOrder?.id === order.id) {
+            const editQty = editRows.reduce((s, r) => s + (Number(r.quantity_sold) || 0), 0);
+            const editTotal = editRows.reduce((s, r) => s + (Number(r.quantity_sold) || 0) * (Number(r.sale_price) || 0), 0);
+            const thStyle = { padding: '9px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' };
+            return (
+              <div key={order.id} className="card" style={{ marginBottom: 14, border: '2px solid #2563eb' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <FiShoppingCart style={{ color: '#2563eb' }} />
+                  <span style={{ fontWeight: 700, color: '#2563eb', fontSize: '0.95rem' }}>
+                    Editing Sale #{order.order_number || order.id}
+                  </span>
+                  <span className="badge badge-success">{editRows.length} item(s)</span>
+                  {orderDate && (
+                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{orderDate} {orderTime}</span>
+                  )}
+                  <span style={{ fontSize: '0.78rem', color: '#64748b', marginLeft: 'auto' }}>
+                    {editQty} unit(s) · ৳{editTotal.toFixed(2)}
+                  </span>
+                </div>
+                <div className="table-container">
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#eff6ff' }}>
+                        <th style={{ ...thStyle, width: 40 }}>#</th>
+                        <th style={thStyle}>Medicine</th>
+                        <th style={thStyle}>Batch #</th>
+                        <th style={{ ...thStyle, width: 110 }}>Qty Sold *</th>
+                        <th style={{ ...thStyle, width: 130 }}>Total Price ৳ *</th>
+                        <th style={{ width: 40 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {editRows.map((row, i) =>
+                        row.locked ? (
+                          <LockedEditRow
+                            key={row.key}
+                            row={row}
+                            index={i}
+                            onUpdate={(u) => updateEditRow(i, u)}
+                            onRemove={() => removeEditRow(i)}
+                          />
+                        ) : (
+                          <BatchPicker
+                            key={row.key}
+                            row={row}
+                            index={i}
+                            batches={batches}
+                            medicineList={medicineList}
+                            onUpdate={(u) => updateEditRow(i, u)}
+                            onRemove={() => removeEditRow(i)}
+                            canRemove={true}
+                          />
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={addEditRow}>
+                    <FiPlus /> Add Row
+                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className="btn btn-outline" onClick={handleEditCancel}>
+                      Cancel
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={handleSaveEdit} disabled={editSubmitting}>
+                      {editSubmitting ? 'Saving…' : 'Save Changes'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── Read-only mode ──
           return (
             <div key={order.id} className="card" style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -353,6 +546,16 @@ export default function StockOut() {
                 <span style={{ fontSize: '0.78rem', color: '#64748b', marginLeft: 'auto' }}>
                   {totalQty} unit(s) · ৳{totalRevenue.toFixed(2)}
                 </span>
+                <button
+                  onClick={() => handleEditStart(order)}
+                  style={{
+                    border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb',
+                    borderRadius: 8, padding: '5px 12px', cursor: 'pointer',
+                    fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <FiEdit2 size={13} /> Edit
+                </button>
                 <button
                   onClick={() => handleDeleteOrder(order.id)}
                   style={{
@@ -372,15 +575,13 @@ export default function StockOut() {
                       <th>Brand</th>
                       <th>Batch #</th>
                       <th>Qty Sold</th>
-                      <th>Sale Price ৳</th>
-                      <th>Total ৳</th>
+                      <th>Total Price ৳</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((s) => {
                       const batch = batches.find((b) => b.id === s.batch_id);
                       const med = batch ? medicineList.find((m) => m.id === batch.medicine_id) : null;
-                      const lineTotal = (s.quantity_sold || 0) * (parseFloat(s.sale_price) || 0);
                       return (
                         <tr key={s.id}>
                           <td style={{ fontWeight: 600 }}>{med?.name || (batch ? (medicineMap[batch.medicine_id] || '—') : '—')}</td>
@@ -388,7 +589,6 @@ export default function StockOut() {
                           <td>{batch ? `#${batch.batch_number}` : '—'}</td>
                           <td>{s.quantity_sold}</td>
                           <td>{s.sale_price}</td>
-                          <td style={{ fontWeight: 600 }}>৳{lineTotal.toFixed(2)}</td>
                         </tr>
                       );
                     })}
