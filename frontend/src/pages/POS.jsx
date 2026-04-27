@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes } from '../api';
+import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes, createThirdPartySale } from '../api';
 import { toast } from 'react-toastify';
 import {
   FiSearch, FiShoppingCart, FiTrash2, FiPlus,
@@ -92,14 +92,35 @@ const billHtml = (bill) => `
 const placeholder = (name) =>
   `https://placehold.co/80x80/f1f5f9/94a3b8?text=${encodeURIComponent((name || '?')[0].toUpperCase())}`;
 
+const POS_DRAFT_KEY = 'pos_cart_draft';
+
+const loadPosDraft = () => {
+  try {
+    const raw = sessionStorage.getItem(POS_DRAFT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+};
+
+const savePosDraft = (cart, discountPct, directPrice) => {
+  try {
+    sessionStorage.setItem(POS_DRAFT_KEY, JSON.stringify({ cart, discountPct, directPrice }));
+  } catch {}
+};
+
+const clearPosDraft = () => {
+  try { sessionStorage.removeItem(POS_DRAFT_KEY); } catch {}
+};
+
 export default function POS() {
+  const draft = loadPosDraft();
   const [medicines, setMedicines] = useState([]);
   const [batches, setBatches] = useState([]);
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(draft?.cart || []);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
-  const [discountPct, setDiscountPct] = useState('');
-  const [directPrice, setDirectPrice] = useState('');
+  const [discountPct, setDiscountPct] = useState(draft?.discountPct || '');
+  const [directPrice, setDirectPrice] = useState(draft?.directPrice || '');
   const [paying, setPaying] = useState(false);
   const [lastBill, setLastBill] = useState(null);
   const [noteMap, setNoteMap] = useState({});
@@ -109,109 +130,44 @@ export default function POS() {
   // ── Third Party modal ──
   const [tpOpen, setTpOpen] = useState(false);
   const [tpSaving, setTpSaving] = useState(false);
-  const [tpMedId, setTpMedId] = useState(null);        // selected existing medicine id
-  const [tpShowSug, setTpShowSug] = useState(false);    // show suggestion dropdown
-  const [tp, setTp] = useState({
-    medicine_name: '', source_shop: '',
-    buy_price: '', buy_qty: '',
-    sell_price: '', sell_qty: '', profit: '5',
-  });
-
-  const updateTp = (field, value) => {
-    if (field === 'medicine_name') {
-      setTpMedId(null);  // clear selection when user types
-      setTpShowSug(true);
-    }
-    setTp((prev) => {
-      const next = { ...prev, [field]: value };
-      const totalPrice = parseFloat(next.buy_price) || 0;
-      const qty = parseInt(next.buy_qty) || 1;
-      const unitPrice = qty > 0 ? totalPrice / qty : 0;
-
-      // Auto-calc selling price when buy_price, buy_qty, or profit changes
-      if (field === 'buy_price' || field === 'profit' || field === 'buy_qty') {
-        const pr = parseFloat(next.profit) || 0;
-        next.sell_price = (unitPrice + pr).toFixed(2);
-      }
-      // If sell_price manually changed, recalc profit based on unit price
-      if (field === 'sell_price') {
-        const sp = parseFloat(value) || 0;
-        next.profit = (sp - unitPrice).toFixed(2);
-      }
-      // Default sell_qty = buy_qty if not yet set
-      if (field === 'buy_qty' && (!next.sell_qty || next.sell_qty === prev.buy_qty)) {
-        next.sell_qty = value;
-      }
-      return next;
-    });
-  };
+  const [tp, setTp] = useState({ source_shop: '', buying_price: '', sale_price: '' });
+  const [tpCounter, setTpCounter] = useState(1);
 
   const resetTp = () => {
-    setTp({ medicine_name: '', source_shop: '', buy_price: '', buy_qty: '', sell_price: '', sell_qty: '', profit: '5' });
-    setTpMedId(null);
-    setTpShowSug(false);
+    setTp({ source_shop: '', buying_price: '', sale_price: '' });
     setTpOpen(false);
   };
 
-  const handleTpConfirm = async () => {
-    if (!tp.medicine_name.trim() || !tp.buy_price || !tp.buy_qty || !tp.sell_price || !tp.sell_qty) {
-      toast.error('Please fill all required fields');
+  const handleTpConfirm = () => {
+    if (!tp.buying_price || !tp.sale_price) {
+      toast.error('Please fill buying price and sale price');
       return;
     }
-    setTpSaving(true);
-    try {
-      // 1) Use selected medicine or find/create
-      let medicine;
-      if (tpMedId) {
-        medicine = medicines.find((m) => m.id === tpMedId);
-      }
-      if (!medicine) {
-        const freshMeds = await getMedicines().then((r) => r.data);
-        const norm = (s) => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
-        medicine = freshMeds.find((m) => norm(m.name) === norm(tp.medicine_name));
-      }
-      if (!medicine) {
-        const res = await createMedicine({ name: tp.medicine_name.trim() });
-        medicine = res.data;
-      }
+    const salePrice = parseFloat(tp.sale_price);
+    const localId = tpCounter;
+    setTpCounter((c) => c + 1);
 
-      // 2) Create a batch (Stock In) with buy qty — use special batch prefix "TP-"
-      const batchNum = `TP-${Date.now().toString().slice(-6)}`;
-      const batchRes = await createBatch({
-        medicine_id: medicine.id,
-        batch_number: batchNum,
-        quantity: parseInt(tp.buy_qty),
-        purchase_price: parseFloat(tp.buy_price),
-        selling_price: parseFloat(tp.sell_price),
-        expiration_date: null,
-      });
-      const newBatch = batchRes.data;
-
-      // 3) Add to cart with sell qty
-      const sellQty = Math.min(parseInt(tp.sell_qty), parseInt(tp.buy_qty));
-      setCart((prev) => [
-        ...prev,
-        {
-          batch_id: newBatch.id,
-          medicine_id: medicine.id,
-          name: medicine.name,
-          brand: medicine.brand || '',
-          generic_name: medicine.generic_name || '',
-          unit_price: parseFloat(tp.sell_price),
-          qty: sellQty,
-          available: parseInt(tp.buy_qty),
-          _thirdParty: true,
-          _sourceShop: tp.source_shop,
+    setCart((prev) => [
+      ...prev,
+      {
+        batch_id: `tp-local-${localId}`,
+        name: `Third Party Sale`,
+        brand: tp.source_shop.trim() || '',
+        generic_name: '',
+        unit_price: salePrice,
+        qty: 1,
+        available: 1,
+        _thirdParty: true,
+        _tpData: {
+          source_shop: tp.source_shop.trim() || null,
+          buying_price: parseFloat(tp.buying_price),
+          sale_price: salePrice,
         },
-      ]);
+      },
+    ]);
 
-      toast.success(`${medicine.name} added from ${tp.source_shop || 'third party'}!`);
-      resetTp();
-      loadData(); // refresh medicines/batches
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to add third party item');
-    }
-    setTpSaving(false);
+    toast.success('Third Party item added to cart!');
+    resetTp();
   };
 
   const loadData = () =>
@@ -224,6 +180,12 @@ export default function POS() {
       .catch(() => toast.error('Failed to load products'));
 
   useEffect(() => { loadData(); }, []);
+
+  /* ── Persist cart to sessionStorage ── */
+  useEffect(() => {
+    if (cart.length > 0) savePosDraft(cart, discountPct, directPrice);
+    else clearPosDraft();
+  }, [cart, discountPct, directPrice]);
 
   /* ── Derived data ── */
   const batchByMed = useMemo(() => {
@@ -315,10 +277,12 @@ export default function POS() {
 
   /* ── Totals ── */
   const subtotal = cart.reduce((sum, c) => sum + c.qty * c.unit_price, 0);
+  const regularSubtotal = cart.filter((c) => !c._thirdParty).reduce((sum, c) => sum + c.qty * c.unit_price, 0);
+  const tpSubtotal = cart.filter((c) => c._thirdParty).reduce((sum, c) => sum + c.qty * c.unit_price, 0);
 
-  // Compute effective discount amount from percentage
+  // Compute effective discount amount from percentage (only on regular items)
   const pctVal = Math.min(Math.max(parseFloat(discountPct) || 0, 0), 100);
-  const discountFromPct = subtotal * pctVal / 100;
+  const discountFromPct = regularSubtotal * pctVal / 100;
   // If user set a direct price, the extra discount is subtotal - discountFromPct - directPrice
   const afterPct = subtotal - discountFromPct;
   const directVal = directPrice !== '' ? parseFloat(directPrice) : NaN;
@@ -344,28 +308,69 @@ export default function POS() {
     setPaying(true);
 
     try {
-      // Compute exact line totals that sum to payable
+      // Separate regular items from third party items
+      const regularItems = cart.filter((c) => !c._thirdParty);
+      const tpItems = cart.filter((c) => c._thirdParty);
+      const regularSubtotalPay = regularItems.reduce((s, c) => s + c.qty * c.unit_price, 0);
+
+      // Build sale order items for regular (non-TP) items
+      // Split quantities across multiple batches (FIFO) when one batch isn't enough
       const items = [];
-      let allocated = 0;
-      for (let i = 0; i < cart.length; i++) {
-        const item = cart[i];
-        let lineTotal;
-        if (i === cart.length - 1) {
-          lineTotal = parseFloat((payable - allocated).toFixed(2));
-        } else {
-          lineTotal = parseFloat((payable * item.qty * item.unit_price / subtotal).toFixed(2));
+      if (regularItems.length > 0) {
+        const regularPayable = payable - tpSubtotal;
+
+        // Expand each cart item across available batches
+        const expandedItems = [];
+        for (const item of regularItems) {
+          const medBatches = (batchByMed[item.medicine_id] || [])
+            .filter((b) => b.quantity > 0)
+            .sort((a, b) => parseInt(a.batch_number) - parseInt(b.batch_number));
+
+          let remaining = item.qty;
+          for (const batch of medBatches) {
+            if (remaining <= 0) break;
+            const take = Math.min(remaining, batch.quantity);
+            expandedItems.push({
+              batch_id: batch.id,
+              qty: take,
+              lineValue: take * item.unit_price,
+            });
+            remaining -= take;
+          }
         }
-        allocated += lineTotal;
-        items.push({
-          batch_id: item.batch_id,
-          quantity_sold: item.qty,
-          sale_price: lineTotal,
-        });
+
+        const expandedSubtotal = expandedItems.reduce((s, e) => s + e.lineValue, 0);
+        let allocated = 0;
+        for (let i = 0; i < expandedItems.length; i++) {
+          const ei = expandedItems[i];
+          let lineTotal;
+          if (i === expandedItems.length - 1) {
+            lineTotal = parseFloat((regularPayable - allocated).toFixed(2));
+          } else {
+            lineTotal = parseFloat((regularPayable * ei.lineValue / expandedSubtotal).toFixed(2));
+          }
+          allocated += lineTotal;
+          items.push({
+            batch_id: ei.batch_id,
+            quantity_sold: ei.qty,
+            sale_price: lineTotal,
+          });
+        }
       }
-      await createSaleOrder({
+
+      // Always create a sale order
+      const orderRes = await createSaleOrder({
         discount_pct: parseFloat(effectivePct.toFixed(2)),
         items,
       });
+      const orderId = orderRes.data.id;
+
+      // Create third party sale records
+      if (tpItems.length > 0) {
+        for (const tpItem of tpItems) {
+          await createThirdPartySale(tpItem._tpData);
+        }
+      }
 
       toast.success(`${cart.length} item(s) sold successfully!`);
       const bill = {
@@ -679,124 +684,42 @@ export default function POS() {
       {/* ── Third Party modal ── */}
       {tpOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 18, padding: '28px 30px', width: '100%', maxWidth: 460, boxShadow: '0 32px 100px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: '#fff', borderRadius: 18, padding: '28px 30px', width: '100%', maxWidth: 420, boxShadow: '0 32px 100px rgba(0,0,0,0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
-                🏪 Third Party Medicine
+                🏪 Third Party Sale
               </h2>
               <button onClick={resetTp} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}><FiX size={20} /></button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Medicine Name with auto-suggest */}
-              <div style={{ position: 'relative' }}>
-                <label style={tpLabelStyle}>Medicine Name *</label>
-                <input
-                  value={tp.medicine_name}
-                  onChange={(e) => updateTp('medicine_name', e.target.value)}
-                  onFocus={() => tp.medicine_name && setTpShowSug(true)}
-                  onBlur={() => setTimeout(() => setTpShowSug(false), 180)}
-                  placeholder="e.g. Napa 500mg"
-                  style={tpInputStyle}
-                  autoComplete="off"
-                />
-                {tpMedId && (
-                  <span style={{ fontSize: '0.68rem', color: '#16a34a', fontWeight: 600, marginTop: 2, display: 'block' }}>
-                    ✓ Existing medicine selected — stock will be updated
-                  </span>
-                )}
-                {tpShowSug && tp.medicine_name.trim().length >= 1 && (() => {
-                  const q = tp.medicine_name.trim().toLowerCase();
-                  const filtered = medicines.filter((m) => m.name.toLowerCase().includes(q)).slice(0, 8);
-                  if (!filtered.length) return null;
-                  return (
-                    <div style={{
-                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
-                      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-                      boxShadow: '0 8px 30px rgba(0,0,0,0.15)', maxHeight: 200, overflowY: 'auto', marginTop: 2,
-                    }}>
-                      {filtered.map((m) => (
-                        <div
-                          key={m.id}
-                          onMouseDown={() => {
-                            setTp((prev) => ({ ...prev, medicine_name: m.name }));
-                            setTpMedId(m.id);
-                            setTpShowSug(false);
-                          }}
-                          style={{
-                            padding: '9px 14px', cursor: 'pointer', fontSize: '0.88rem',
-                            borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
-                        >
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>{m.name}</span>
-                          {m.brand && <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{m.brand}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-
               {/* Source Shop */}
               <div>
-                <label style={tpLabelStyle}>Source Shop</label>
-                <input value={tp.source_shop} onChange={(e) => updateTp('source_shop', e.target.value)} placeholder="e.g. Nearby Pharmacy" style={tpInputStyle} />
+                <label style={tpLabelStyle}>Shop Name</label>
+                <input value={tp.source_shop} onChange={(e) => setTp({ ...tp, source_shop: e.target.value })} placeholder="e.g. Nearby Pharmacy" style={tpInputStyle} />
               </div>
 
-              {/* Buy Price & Buy Qty */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={tpLabelStyle}>Total Purchase Price ৳ *</label>
-                  <input type="number" step="0.01" min="0" value={tp.buy_price} onChange={(e) => updateTp('buy_price', e.target.value)} placeholder="0.00" style={tpInputStyle} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={tpLabelStyle}>Purchase Qty *</label>
-                  <input type="number" min="1" value={tp.buy_qty} onChange={(e) => updateTp('buy_qty', e.target.value)} placeholder="1" style={tpInputStyle} />
-                </div>
+              {/* Buying Price */}
+              <div>
+                <label style={tpLabelStyle}>Total Buying Price ৳ *</label>
+                <input type="number" step="0.01" min="0" value={tp.buying_price} onChange={(e) => setTp({ ...tp, buying_price: e.target.value })} placeholder="0.00" style={tpInputStyle} />
               </div>
 
-              {/* Auto-calculated Unit Price */}
-              {tp.buy_price && tp.buy_qty && (
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 600 }}>Unit Price: </span>
-                  <span style={{ fontWeight: 800, color: '#1d4ed8', fontSize: '0.95rem' }}>
-                    ৳{((parseFloat(tp.buy_price) || 0) / (parseInt(tp.buy_qty) || 1)).toFixed(2)}
+              {/* Sale Price */}
+              <div>
+                <label style={tpLabelStyle}>Total Selling Price ৳ *</label>
+                <input type="number" step="0.01" min="0" value={tp.sale_price} onChange={(e) => setTp({ ...tp, sale_price: e.target.value })} placeholder="0.00" style={tpInputStyle} />
+              </div>
+
+              {/* Auto-calculated Profit */}
+              {tp.buying_price && tp.sale_price && (
+                <div style={{ background: parseFloat(tp.sale_price) >= parseFloat(tp.buying_price) ? '#f0fdf4' : '#fef2f2', border: `1px solid ${parseFloat(tp.sale_price) >= parseFloat(tp.buying_price) ? '#bbf7d0' : '#fecaca'}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: parseFloat(tp.sale_price) >= parseFloat(tp.buying_price) ? '#16a34a' : '#dc2626', fontWeight: 600 }}>Profit: </span>
+                  <span style={{ fontWeight: 800, color: parseFloat(tp.sale_price) >= parseFloat(tp.buying_price) ? '#15803d' : '#b91c1c', fontSize: '1rem' }}>
+                    ৳{((parseFloat(tp.sale_price) || 0) - (parseFloat(tp.buying_price) || 0)).toFixed(2)}
                   </span>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: 6 }}>(auto-calculated)</span>
                 </div>
               )}
-
-              {/* Profit & Sell Price */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={tpLabelStyle}>Profit / Unit ৳</label>
-                  <input type="number" step="0.01" value={tp.profit} onChange={(e) => updateTp('profit', e.target.value)} placeholder="5" style={tpInputStyle} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={tpLabelStyle}>Selling Price ৳ *</label>
-                  <input type="number" step="0.01" min="0" value={tp.sell_price} onChange={(e) => updateTp('sell_price', e.target.value)} placeholder="0.00" style={tpInputStyle} />
-                </div>
-              </div>
-
-              {/* Sell Qty */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={tpLabelStyle}>Selling Qty *</label>
-                  <input type="number" min="1" max={tp.buy_qty || 9999} value={tp.sell_qty} onChange={(e) => updateTp('sell_qty', e.target.value)} placeholder="1" style={tpInputStyle} />
-                </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
-                  {tp.buy_price && tp.sell_qty && (
-                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 12px', width: '100%', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600 }}>Total Profit</div>
-                      <div style={{ fontWeight: 800, color: '#15803d', fontSize: '1rem' }}>
-                        ৳{((parseFloat(tp.profit) || 0) * (parseInt(tp.sell_qty) || 0)).toFixed(2)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
             {/* Actions */}

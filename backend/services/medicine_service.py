@@ -39,7 +39,7 @@ def get_medicine(db: Session, medicine_id: int) -> Optional[Medicine]:
 
 
 def get_medicines(db: Session, skip: int = 0, limit: int = 100) -> List[Medicine]:
-    return db.query(Medicine).offset(skip).limit(limit).all()
+    return db.query(Medicine).order_by(Medicine.name).offset(skip).limit(limit).all()
 
 
 def update_medicine(db: Session, medicine_id: int, data: MedicineUpdate) -> Optional[Medicine]:

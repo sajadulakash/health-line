@@ -27,6 +27,8 @@ export const getBatches = (medicineId) =>
   API.get('/batches/', { params: medicineId ? { medicine_id: medicineId } : {} });
 export const createBatch = (data) => API.post('/batches/', data);
 export const updateBatch = (id, data) => API.put(`/batches/${id}`, data);
+export const correctBatchQuantity = (id, newInitialQuantity) =>
+  API.patch(`/batches/${id}/correct-quantity`, { new_initial_quantity: newInitialQuantity });
 export const deleteBatch = (id) => API.delete(`/batches/${id}`);
 export const getExpiringSoon = (days = 90) =>
   API.get('/analytics/expiring-soon', { params: { days } });
@@ -47,5 +49,10 @@ export const getProfitReport = (period = 'daily', startDate = null, endDate = nu
 
 // ── Search ──
 export const searchMedicines = (q) => API.get('/search/', { params: { q } });
+
+// ── Third Party Sales ──
+export const createThirdPartySale = (data) => API.post('/third-party-sales/', data);
+export const getThirdPartySales = () => API.get('/third-party-sales/');
+export const deleteThirdPartySale = (id) => API.delete(`/third-party-sales/${id}`);
 
 export default API;

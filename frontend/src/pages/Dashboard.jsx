@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMedicines, getBatches, getProfitReport } from '../api';
-import { FiChevronDown, FiChevronUp, FiCalendar } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiCalendar, FiSearch, FiX } from 'react-icons/fi';
 
 const PERIODS = [
   { key: 'daily', label: 'Today' },
@@ -12,6 +12,7 @@ function ProfitSection({ period, label }) {
   const [data, setData] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -26,11 +27,44 @@ function ProfitSection({ period, label }) {
   if (loading) return <div className="card" style={{ marginBottom: 16, padding: 20, color: '#94a3b8' }}>Loading {label}…</div>;
   if (!data) return null;
 
-  const profitColor = data.total_profit >= 0 ? '#16a34a' : '#dc2626';
-  const orders = data.orders || [];
+  // Filter orders by medicine name search (monthly only)
+  const allOrders = data.orders || [];
+  const query = searchQuery.trim().toLowerCase();
+  const orders = period === 'monthly' && query
+    ? allOrders.filter((o) => (o.items || []).some((it) => it.medicine_name.toLowerCase().includes(query)))
+    : allOrders;
+
+  const filteredTotals = period === 'monthly' && query
+    ? orders.reduce((acc, o) => ({ buying: acc.buying + o.total_buying, selling: acc.selling + o.total_selling, profit: acc.profit + o.profit }), { buying: 0, selling: 0, profit: 0 })
+    : { buying: data.total_buying, selling: data.total_selling, profit: data.total_profit };
+
+  const profitColor = filteredTotals.profit >= 0 ? '#16a34a' : '#dc2626';
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
+      {/* Medicine search — monthly only */}
+      {period === 'monthly' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <FiSearch size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Search by medicine name…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            style={{ flex: 1, padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', outline: 'none', background: '#f8fafc' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, display: 'flex' }}
+            >
+              <FiX size={16} />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Summary row — always visible */}
       <div
         onClick={() => setExpanded(!expanded)}
@@ -38,20 +72,20 @@ function ProfitSection({ period, label }) {
       >
         <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
           {label}
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>({data.order_count} order{data.order_count !== 1 ? 's' : ''})</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>({orders.length} order{orders.length !== 1 ? 's' : ''}){query && ' — filtered'}</span>
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Buying</div>
-            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(data.total_buying)}</div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(filteredTotals.buying)}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Selling</div>
-            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(data.total_selling)}</div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(filteredTotals.selling)}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Profit</div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: profitColor }}>{fmt(data.total_profit)}</div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: profitColor }}>{fmt(filteredTotals.profit)}</div>
           </div>
           <span style={{ color: '#94a3b8', marginLeft: 4 }}>{expanded ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}</span>
         </div>
@@ -326,7 +360,7 @@ export default function Dashboard() {
       {PERIODS.map((p) => (
         <ProfitSection key={p.key} period={p.key} label={p.label} />
       ))}
-      { <CustomRangeSection /> }
+      {<CustomRangeSection />}
     </>
   );
 }

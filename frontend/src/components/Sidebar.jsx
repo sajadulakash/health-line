@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   FiHome, FiArrowDown, FiArrowUp,
-  FiTrendingUp, FiAlertTriangle, FiPackage, FiShoppingBag,
+  FiTrendingUp, FiAlertTriangle, FiPackage, FiShoppingBag, FiShoppingCart,
 } from 'react-icons/fi';
 
 const links = [
@@ -10,6 +10,7 @@ const links = [
   { to: '/medicines', icon: <FiPackage />, label: 'Medicines' },
   { to: '/stock-in', icon: <FiArrowDown />, label: 'Stock In' },
   { to: '/stock-out', icon: <FiArrowUp />, label: 'Stock Out' },
+  { to: '/tp-sales', icon: <FiShoppingCart />, label: 'TP Sales' },
   { to: '/top-selling', icon: <FiTrendingUp />, label: 'Top Selling' },
   { to: '/expiring-soon', icon: <FiAlertTriangle />, label: 'Expiring Soon' },
 ];

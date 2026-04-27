@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, deleteBatch, uploadMedicineImage } from '../api';
+import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, correctBatchQuantity, deleteBatch, uploadMedicineImage } from '../api';
 import { toast } from 'react-toastify';
-import { FiPlus, FiTrash2, FiPackage, FiCamera, FiEdit2, FiSave, FiX } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiPackage, FiCamera, FiEdit2, FiSave, FiX, FiMaximize2 } from 'react-icons/fi';
+
+const noScroll = (e) => e.target.blur();
 
 /* ── Auto-suggest input with word-wrap ── */
 function AutoSuggest({ value, onChange, suggestions, placeholder, required, style }) {
@@ -134,6 +136,7 @@ export default function StockIn() {
   const imageFilesRef = useRef({}); // { rowKey: File }
   const [imagePreviews, setImagePreviews] = useState({}); // { rowKey: dataURL }
   const [selectedRow, setSelectedRow] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null); // URL string for image preview modal
 
   // Persist draft on every rows change
   useEffect(() => {
@@ -406,9 +409,9 @@ export default function StockIn() {
           brand: (row.brand || '').trim() || null,
           category: (row.category || '').trim() || null,
         });
+        // Use delta-based correction for quantity changes
+        await correctBatchQuantity(row.id, Number(row.quantity));
         await updateBatch(row.id, {
-          quantity: Number(row.quantity),
-          initial_quantity: Number(row.quantity),
           purchase_price: Number(row.purchase_price),
           selling_price: Number(row.selling_price),
           expiration_date: row.expiration_date || null,
@@ -421,7 +424,11 @@ export default function StockIn() {
           try { await uploadMedicineImage(row.medicine_id, fd); } catch { /* non-critical */ }
         }
         ok++;
-      } catch { fail++; }
+      } catch (err) {
+        const detail = err?.response?.data?.detail;
+        if (detail) toast.error(`${row.medicine_name}: ${detail}`);
+        fail++;
+      }
     }
 
     // 3) Add new rows to this batch
@@ -520,30 +527,51 @@ export default function StockIn() {
                   >
                     <td style={{ color: '#94a3b8', fontWeight: 600 }}>{i + 1}</td>
                     <td>
-                      <label
-                        onDrop={(e) => handleImageDrop(row.key, e)}
-                        onDragOver={(e) => e.preventDefault()}
-                        title="Click to browse, or paste anywhere in this row"
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          width: 44, height: 44, borderRadius: 8,
-                          border: imagePreviews[row.key] || row.image_url ? '2px solid #22c55e' : '2px dashed #cbd5e1', cursor: 'pointer',
-                          overflow: 'hidden', background: '#f8fafc', flexShrink: 0,
-                        }}
-                      >
-                        {imagePreviews[row.key] ? (
-                          <img src={imagePreviews[row.key]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : row.image_url ? (
-                          <img src={`${IMG_BASE}${row.image_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <FiCamera size={16} color="#94a3b8" />
+                      <div style={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
+                        <label
+                          onDrop={(e) => handleImageDrop(row.key, e)}
+                          onDragOver={(e) => e.preventDefault()}
+                          title="Click to browse, or paste anywhere in this row"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 44, height: 44, borderRadius: 8,
+                            border: imagePreviews[row.key] || row.image_url ? '2px solid #22c55e' : '2px dashed #cbd5e1', cursor: 'pointer',
+                            overflow: 'hidden', background: '#f8fafc',
+                          }}
+                        >
+                          {imagePreviews[row.key] ? (
+                            <img src={imagePreviews[row.key]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : row.image_url ? (
+                            <img src={`${IMG_BASE}${row.image_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <FiCamera size={16} color="#94a3b8" />
+                          )}
+                          <input
+                            type="file" accept="image/*"
+                            onChange={(e) => handleImageChange(row.key, e.target.files[0])}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+                        {(imagePreviews[row.key] || row.image_url) && (
+                          <button
+                            type="button"
+                            title="Preview image"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(imagePreviews[row.key] || `${IMG_BASE}${row.image_url}`);
+                            }}
+                            style={{
+                              position: 'absolute', top: -4, right: -4,
+                              width: 18, height: 18, borderRadius: 4,
+                              background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              padding: 0, zIndex: 2,
+                            }}
+                          >
+                            <FiMaximize2 size={10} color="#fff" />
+                          </button>
                         )}
-                        <input
-                          type="file" accept="image/*"
-                          onChange={(e) => handleImageChange(row.key, e.target.files[0])}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
+                      </div>
                     </td>
                     <td>
                       <AutoSuggest
@@ -583,10 +611,10 @@ export default function StockIn() {
                       />
                     </td>
                     <td>
-                      <input type="number" min="1" value={row.quantity} onChange={(e) => updateRow(i, { quantity: e.target.value })} required style={{ ...inputStyle, width: 65 }} />
+                      <input type="number" min="1" value={row.quantity} onChange={(e) => updateRow(i, { quantity: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 65 }} />
                     </td>
                     <td>
-                      <input type="number" step="0.01" min="0" value={row.purchase_price} onChange={(e) => updateRow(i, { purchase_price: e.target.value })} required style={{ ...inputStyle, width: 95 }} />
+                      <input type="number" step="0.01" min="0" value={row.purchase_price} onChange={(e) => updateRow(i, { purchase_price: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 95 }} />
                     </td>
                     <td>
                       <input
@@ -601,7 +629,7 @@ export default function StockIn() {
                       />
                     </td>
                     <td>
-                      <input type="number" step="0.01" min="0" value={row.selling_price} onChange={(e) => updateRow(i, { selling_price: e.target.value })} required style={{ ...inputStyle, width: 95 }} />
+                      <input type="number" step="0.01" min="0" value={row.selling_price} onChange={(e) => updateRow(i, { selling_price: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 95 }} />
                     </td>
                     <td>
                       <input type="date" value={row.expiration_date} onChange={(e) => updateRow(i, { expiration_date: e.target.value })} style={inputStyle} />
@@ -750,10 +778,10 @@ export default function StockIn() {
                               />
                             </td>
                             <td>
-                              <input type="number" min="0" value={row.quantity} onChange={(e) => updateEditRow(i, { quantity: e.target.value })} disabled={row._deleted} style={{ ...inputStyle, width: 65 }} />
+                              <input type="number" min="0" value={row.quantity} onChange={(e) => updateEditRow(i, { quantity: e.target.value })} onWheel={noScroll} disabled={row._deleted} style={{ ...inputStyle, width: 65 }} />
                             </td>
                             <td>
-                              <input type="number" step="0.01" min="0" value={row.purchase_price} onChange={(e) => updateEditRow(i, { purchase_price: e.target.value })} disabled={row._deleted} style={{ ...inputStyle, width: 95 }} />
+                              <input type="number" step="0.01" min="0" value={row.purchase_price} onChange={(e) => updateEditRow(i, { purchase_price: e.target.value })} onWheel={noScroll} disabled={row._deleted} style={{ ...inputStyle, width: 95 }} />
                             </td>
                             <td style={{ color: '#475569' }}>
                               {row.quantity && row.purchase_price && Number(row.quantity) > 0
@@ -761,7 +789,7 @@ export default function StockIn() {
                                 : '—'}
                             </td>
                             <td>
-                              <input type="number" step="0.01" min="0" value={row.selling_price} onChange={(e) => updateEditRow(i, { selling_price: e.target.value })} disabled={row._deleted} style={{ ...inputStyle, width: 95 }} />
+                              <input type="number" step="0.01" min="0" value={row.selling_price} onChange={(e) => updateEditRow(i, { selling_price: e.target.value })} onWheel={noScroll} disabled={row._deleted} style={{ ...inputStyle, width: 95 }} />
                             </td>
                             <td>
                               <input type="date" value={row.expiration_date} onChange={(e) => updateEditRow(i, { expiration_date: e.target.value })} disabled={row._deleted} style={inputStyle} />
@@ -843,10 +871,10 @@ export default function StockIn() {
                               />
                             </td>
                             <td>
-                              <input type="number" min="1" value={row.quantity} onChange={(e) => updateAddRow(i, { quantity: e.target.value })} required style={{ ...inputStyle, width: 65 }} />
+                              <input type="number" min="1" value={row.quantity} onChange={(e) => updateAddRow(i, { quantity: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 65 }} />
                             </td>
                             <td>
-                              <input type="number" step="0.01" min="0" value={row.purchase_price} onChange={(e) => updateAddRow(i, { purchase_price: e.target.value })} required style={{ ...inputStyle, width: 95 }} />
+                              <input type="number" step="0.01" min="0" value={row.purchase_price} onChange={(e) => updateAddRow(i, { purchase_price: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 95 }} />
                             </td>
                             <td style={{ color: '#475569' }}>
                               {row.quantity && row.purchase_price && Number(row.quantity) > 0
@@ -854,7 +882,7 @@ export default function StockIn() {
                                 : '—'}
                             </td>
                             <td>
-                              <input type="number" step="0.01" min="0" value={row.selling_price} onChange={(e) => updateAddRow(i, { selling_price: e.target.value })} required style={{ ...inputStyle, width: 95 }} />
+                              <input type="number" step="0.01" min="0" value={row.selling_price} onChange={(e) => updateAddRow(i, { selling_price: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 95 }} />
                             </td>
                             <td>
                               <input type="date" value={row.expiration_date} onChange={(e) => updateAddRow(i, { expiration_date: e.target.value })} style={inputStyle} />
@@ -916,6 +944,45 @@ export default function StockIn() {
             </div>
           );
         })
+      )}
+      {/* ── Image Preview Modal ── */}
+      {previewImage && ReactDOM.createPortal(
+        <div
+          onClick={() => setPreviewImage(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative', background: '#fff', borderRadius: 12,
+              padding: 8, maxWidth: '90vw', maxHeight: '90vh',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: 'absolute', top: -10, right: -10,
+                width: 28, height: 28, borderRadius: '50%',
+                background: '#ef4444', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+              }}
+            >
+              <FiX size={14} color="#fff" />
+            </button>
+            <img
+              src={previewImage}
+              alt="Preview"
+              style={{ display: 'block', maxWidth: '85vw', maxHeight: '85vh', borderRadius: 8, objectFit: 'contain' }}
+            />
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

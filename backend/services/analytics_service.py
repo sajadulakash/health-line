@@ -8,6 +8,7 @@ from backend.models.sale import Sale
 from backend.models.sale_order import SaleOrder
 from backend.models.batch import Batch
 from backend.models.medicine import Medicine
+from backend.models.third_party_sale import ThirdPartySale
 
 
 def get_profit_report(
@@ -33,7 +34,8 @@ def get_profit_report(
         if period == "daily":
             start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         elif period == "weekly":
-            start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+            # Saturday = weekday 5; compute days since last Saturday
+            start = (now - timedelta(days=(now.weekday() - 5) % 7)).replace(hour=0, minute=0, second=0, microsecond=0)
         else:  # monthly
             start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end = now
@@ -115,6 +117,44 @@ def get_profit_report(
             "profit": round(order_sell - order_buy, 2),
             "items": items,
         })
+
+    # ── Third Party Sales ──
+    tp_sales = (
+        db.query(ThirdPartySale)
+        .filter(ThirdPartySale.date >= start, ThirdPartySale.date <= end)
+        .order_by(ThirdPartySale.date.desc())
+        .all()
+    )
+    for tp in tp_sales:
+        tp_buy = float(tp.buying_price or 0)
+        tp_sell = float(tp.sale_price or 0)
+        tp_profit = tp_sell - tp_buy
+        total_buying += tp_buy
+        total_selling += tp_sell
+        order_list.append({
+            "order_id": f"tp-{tp.id}",
+            "order_number": f"TP-{tp.id}",
+            "discount_pct": 0,
+            "created_at": tp.date.isoformat() if tp.date else None,
+            "total_buying": round(tp_buy, 2),
+            "total_selling": round(tp_sell, 2),
+            "profit": round(tp_profit, 2),
+            "items": [{
+                "sale_id": f"tp-{tp.id}",
+                "medicine_name": f"Third Party Sale #{tp.id}",
+                "brand": tp.source_shop or "",
+                "batch_number": "—",
+                "quantity": 1,
+                "buying_price": round(tp_buy, 2),
+                "selling_price": round(tp_sell, 2),
+                "total_buying": round(tp_buy, 2),
+                "total_selling": round(tp_sell, 2),
+                "profit": round(tp_profit, 2),
+            }],
+        })
+
+    # Sort combined list by date descending
+    order_list.sort(key=lambda o: o["created_at"] or "", reverse=True)
 
     return {
         "period": period,

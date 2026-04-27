@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from backend.database import get_db
-from backend.schemas.batch import BatchCreate, BatchUpdate, BatchResponse
+from backend.schemas.batch import BatchCreate, BatchUpdate, BatchResponse, BatchCorrectQuantity
 from backend.services import batch_service
 
 router = APIRouter(prefix="/api/batches", tags=["Batches"])
@@ -46,6 +46,18 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
 @router.put("/{batch_id}", response_model=BatchResponse)
 def update_batch(batch_id: int, data: BatchUpdate, db: Session = Depends(get_db)):
     batch = batch_service.update_batch(db, batch_id, data)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return batch
+
+
+@router.patch("/{batch_id}/correct-quantity", response_model=BatchResponse)
+def correct_batch_quantity(batch_id: int, data: BatchCorrectQuantity, db: Session = Depends(get_db)):
+    """Correct the original stocked quantity while preserving sales already made."""
+    try:
+        batch = batch_service.correct_initial_quantity(db, batch_id, data.new_initial_quantity)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
     return batch

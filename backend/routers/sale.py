@@ -33,7 +33,7 @@ def create_sale_order(data: SaleOrderCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/orders", response_model=List[SaleOrderResponse])
-def list_sale_orders(skip: int = 0, limit: int = 200, db: Session = Depends(get_db)):
+def list_sale_orders(skip: int = 0, limit: int = 100000, db: Session = Depends(get_db)):
     return sale_service.get_sale_orders(db, skip=skip, limit=limit)
 
 

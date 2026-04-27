@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from backend.config import get_settings
-from backend.routers import medicine, batch, sale, analytics, search
+from backend.routers import medicine, batch, sale, analytics, search, third_party_sale
 
 settings = get_settings()
 
@@ -33,6 +33,7 @@ app.include_router(batch.router)
 app.include_router(sale.router)
 app.include_router(analytics.router)
 app.include_router(search.router)
+app.include_router(third_party_sale.router)
 
 
 @app.get("/", tags=["Root"])

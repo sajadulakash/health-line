@@ -23,6 +23,10 @@ class BatchUpdate(BaseModel):
     selling_price: Optional[Decimal] = None
 
 
+class BatchCorrectQuantity(BaseModel):
+    new_initial_quantity: int
+
+
 class BatchResponse(BaseModel):
     id: int
     medicine_id: Optional[int] = None

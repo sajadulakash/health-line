@@ -74,6 +74,27 @@ def delete_batch(db: Session, batch_id: int) -> bool:
     return True
 
 
+def correct_initial_quantity(db: Session, batch_id: int, new_initial: int) -> Optional[Batch]:
+    """Correct the original stocked quantity while preserving sales already made."""
+    batch = db.query(Batch).filter(Batch.id == batch_id).first()
+    if not batch:
+        return None
+    old_initial = batch.initial_quantity if batch.initial_quantity is not None else (batch.quantity or 0)
+    old_current = batch.quantity or 0
+    sold = old_initial - old_current
+    new_current = new_initial - sold
+    if new_current < 0:
+        raise ValueError(
+            f"Cannot set initial quantity to {new_initial}. "
+            f"Already sold {sold} units; minimum initial quantity is {sold}."
+        )
+    batch.initial_quantity = new_initial
+    batch.quantity = new_current
+    db.commit()
+    db.refresh(batch)
+    return batch
+
+
 def adjust_inventory(db: Session, batch_id: int, quantity_sold: int) -> Optional[Batch]:
     """Subtract sold quantity from batch inventory."""
     batch = db.query(Batch).filter(Batch.id == batch_id).first()
