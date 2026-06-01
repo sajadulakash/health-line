@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMedicines, getBatches, getProfitReport } from '../api';
+import { getMedicines, getBatches, getProfitReport, getInventoryValue } from '../api';
 import { FiChevronDown, FiChevronUp, FiCalendar, FiSearch, FiX } from 'react-icons/fi';
 
 const PERIODS = [
@@ -324,20 +324,23 @@ function CustomRangeSection() {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({ medicines: 0, batches: 0 });
+  const [stats, setStats] = useState({ medicines: 0, batches: 0, inventoryValue: 0 });
 
   useEffect(() => {
-    Promise.all([getMedicines(), getBatches()])
-      .then(([m, b]) => {
+    Promise.all([getMedicines(), getBatches(), getInventoryValue()])
+      .then(([m, b, iv]) => {
         const activeBatches = b.data.filter((batch) => batch.quantity > 0);
         const uniqueBatchNums = new Set(activeBatches.map((batch) => batch.batch_number));
         setStats({
           medicines: m.data.length,
           batches: uniqueBatchNums.size,
+          inventoryValue: iv.data.inventory_value || 0,
         });
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
+
+  const fmtCurrency = (v) => `৳${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
   return (
     <>
@@ -352,6 +355,10 @@ export default function Dashboard() {
         <div className="stat-card">
           <div className="label">Active Batches</div>
           <div className="value">{stats.batches}</div>
+        </div>
+        <div className="stat-card">
+          <div className="label">Current Inventory Value</div>
+          <div className="value" style={{ fontSize: '1.5rem' }}>{fmtCurrency(stats.inventoryValue)}</div>
         </div>
       </div>
 

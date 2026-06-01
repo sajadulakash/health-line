@@ -63,6 +63,21 @@ def correct_batch_quantity(batch_id: int, data: BatchCorrectQuantity, db: Sessio
     return batch
 
 
+@router.patch("/{batch_id}/fix-count", response_model=BatchResponse)
+def fix_batch_count(batch_id: int, payload: dict, db: Session = Depends(get_db)):
+    """Directly set the current quantity of a batch (inventory correction)."""
+    new_quantity = payload.get("quantity")
+    if new_quantity is None:
+        raise HTTPException(status_code=400, detail="quantity is required")
+    try:
+        batch = batch_service.fix_batch_count(db, batch_id, int(new_quantity))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return batch
+
+
 @router.delete("/{batch_id}")
 def delete_batch(batch_id: int, db: Session = Depends(get_db)):
     success = batch_service.delete_batch(db, batch_id)

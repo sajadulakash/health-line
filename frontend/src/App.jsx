@@ -11,6 +11,7 @@ import TopSelling from './pages/TopSelling';
 import ExpiringSoon from './pages/ExpiringSoon';
 import POS from './pages/POS';
 import TPSales from './pages/TPSales';
+import FixBatchCount from './pages/FixBatchCount';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/top-selling" element={<TopSelling />} />
           <Route path="/expiring-soon" element={<ExpiringSoon />} />
           <Route path="/tp-sales" element={<TPSales />} />
+          <Route path="/fix-batch-count" element={<FixBatchCount />} />
         </Route>
       </Routes>
       <ToastContainer position="top-right" autoClose={3000} />

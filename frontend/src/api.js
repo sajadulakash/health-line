@@ -30,6 +30,8 @@ export const updateBatch = (id, data) => API.put(`/batches/${id}`, data);
 export const correctBatchQuantity = (id, newInitialQuantity) =>
   API.patch(`/batches/${id}/correct-quantity`, { new_initial_quantity: newInitialQuantity });
 export const deleteBatch = (id) => API.delete(`/batches/${id}`);
+export const fixBatchCount = (id, quantity) =>
+  API.patch(`/batches/${id}/fix-count`, { quantity });
 export const getExpiringSoon = (days = 90) =>
   API.get('/analytics/expiring-soon', { params: { days } });
 
@@ -46,6 +48,7 @@ export const getTopSelling = (limit = 20) =>
   API.get('/analytics/top-selling', { params: { limit } });
 export const getProfitReport = (period = 'daily', startDate = null, endDate = null) =>
   API.get('/analytics/profit-report', { params: { period, ...(startDate && { start_date: startDate }), ...(endDate && { end_date: endDate }) } });
+export const getInventoryValue = () => API.get('/analytics/inventory-value');
 
 // ── Search ──
 export const searchMedicines = (q) => API.get('/search/', { params: { q } });

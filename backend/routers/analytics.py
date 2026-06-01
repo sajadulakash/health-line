@@ -38,3 +38,19 @@ def expiring_soon(
 ):
     """Get soonest-to-expire stock."""
     return batch_service.get_expiring_soon(db, days=days, limit=limit)
+
+
+@router.get("/inventory-value")
+def inventory_value(db: Session = Depends(get_db)):
+    """Get total current inventory value: SUM((purchase_price / initial_quantity) * quantity) for all in-stock batches."""
+    from sqlalchemy import func, case
+    from backend.models.batch import Batch
+    # per-unit cost = purchase_price / initial_quantity, then multiply by current quantity
+    per_unit = Batch.purchase_price / case(
+        (Batch.initial_quantity > 0, Batch.initial_quantity),
+        else_=1  # fallback to avoid division by zero
+    )
+    result = db.query(func.sum(per_unit * Batch.quantity)).filter(
+        Batch.quantity > 0, Batch.initial_quantity > 0
+    ).scalar()
+    return {"inventory_value": float(result or 0)}

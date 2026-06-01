@@ -95,6 +95,19 @@ def correct_initial_quantity(db: Session, batch_id: int, new_initial: int) -> Op
     return batch
 
 
+def fix_batch_count(db: Session, batch_id: int, new_quantity: int) -> Optional[Batch]:
+    """Directly set the current quantity of a batch (inventory correction)."""
+    batch = db.query(Batch).filter(Batch.id == batch_id).first()
+    if not batch:
+        return None
+    if new_quantity < 0:
+        raise ValueError("Quantity cannot be negative.")
+    batch.quantity = new_quantity
+    db.commit()
+    db.refresh(batch)
+    return batch
+
+
 def adjust_inventory(db: Session, batch_id: int, quantity_sold: int) -> Optional[Batch]:
     """Subtract sold quantity from batch inventory."""
     batch = db.query(Batch).filter(Batch.id == batch_id).first()

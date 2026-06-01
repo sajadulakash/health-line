@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   FiHome, FiArrowDown, FiArrowUp,
-  FiTrendingUp, FiAlertTriangle, FiPackage, FiShoppingBag, FiShoppingCart,
+  FiTrendingUp, FiAlertTriangle, FiPackage, FiShoppingBag, FiShoppingCart, FiTool,
 } from 'react-icons/fi';
 
 const links = [
@@ -13,6 +13,7 @@ const links = [
   { to: '/tp-sales', icon: <FiShoppingCart />, label: 'TP Sales' },
   { to: '/top-selling', icon: <FiTrendingUp />, label: 'Top Selling' },
   { to: '/expiring-soon', icon: <FiAlertTriangle />, label: 'Expiring Soon' },
+  { to: '/fix-batch-count', icon: <FiTool />, label: 'Fix Batch Count' },
 ];
 
 export default function Sidebar() {
