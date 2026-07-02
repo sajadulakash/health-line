@@ -567,8 +567,11 @@ export default function POS() {
                 <div>Click a product to add it</div>
               </div>
             ) : (
-              cart.map((item) => (
+              cart.map((item, idx) => (
                 <div key={item.batch_id} style={{ padding: '10px 14px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: '#eff6ff', color: '#2563eb', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                    {idx + 1}
+                  </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.name}
