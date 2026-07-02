@@ -109,6 +109,7 @@ const emptyRow = () => ({
   brand: '',
   category: '',
   image_url: '',
+  strip_size: '',
   quantity: '',
   purchase_price: '',
   selling_price: '',
@@ -169,6 +170,7 @@ export default function StockIn() {
         brand: '',
         category: '',
         image_url: '',
+        strip_size: '',
         selling_price: '',
       });
       return;
@@ -181,6 +183,7 @@ export default function StockIn() {
       brand: found ? (found.brand || '') : rows[i].brand,
       category: found ? (found.category || '') : rows[i].category,
       image_url: found ? (found.image_url || '') : rows[i].image_url,
+      strip_size: found ? (found.strip_size ?? '') : rows[i].strip_size,
     };
     if (found) {
       const medBatches = batches.filter((b) => b.medicine_id === found.id && b.selling_price);
@@ -250,15 +253,23 @@ export default function StockIn() {
         let medicine = freshMeds.find(
           (m) => norm(m.name) === norm(row.medicine_name)
         );
+        const stripVal = row.strip_size !== '' && row.strip_size != null ? Number(row.strip_size) : null;
         if (!medicine) {
           const res = await createMedicine({
             name: row.medicine_name.trim().replace(/\s+/g, ' '),
             generic_name: row.generic_name?.trim() || null,
             brand: row.brand?.trim() || null,
             category: row.category?.trim() || null,
+            strip_size: stripVal,
           });
           medicine = res.data;
           freshMeds.push(medicine); // prevent duplicate creation within same session
+        } else if (stripVal != null && stripVal !== medicine.strip_size) {
+          // Fill in / update the strip size on an existing medicine
+          try {
+            await updateMedicine(medicine.id, { strip_size: stripVal });
+            medicine.strip_size = stripVal;
+          } catch { /* non-critical */ }
         }
 
         await createBatch({
@@ -509,6 +520,7 @@ export default function StockIn() {
                   <th>Generic Name</th>
                   <th>Brand</th>
                   <th>Category</th>
+                  <th style={{ width: 80 }}>Strip (units)</th>
                   <th style={{ width: 70 }}>Qty *</th>
                   <th style={{ width: 110 }}>Total Purchase ৳ *</th>
                   <th style={{ width: 100 }}>Per Unit Price ৳</th>
@@ -612,6 +624,9 @@ export default function StockIn() {
                         placeholder="Category…"
                         style={{ ...inputStyle, width: '100%', minWidth: 80 }}
                       />
+                    </td>
+                    <td>
+                      <input type="number" min="1" value={row.strip_size} onChange={(e) => updateRow(i, { strip_size: e.target.value })} onWheel={noScroll} placeholder="e.g. 10" style={{ ...inputStyle, width: 70 }} />
                     </td>
                     <td>
                       <input type="number" min="1" value={row.quantity} onChange={(e) => updateRow(i, { quantity: e.target.value })} onWheel={noScroll} required style={{ ...inputStyle, width: 65 }} />

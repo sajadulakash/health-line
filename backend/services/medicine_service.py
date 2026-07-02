@@ -17,7 +17,7 @@ def create_medicine(db: Session, data: MedicineCreate) -> Medicine:
     if existing:
         # Update empty fields on the existing record if the caller supplied them
         changed = False
-        for field in ("generic_name", "category", "brand"):
+        for field in ("generic_name", "category", "brand", "strip_size"):
             new_val = getattr(data, field, None)
             if new_val and not getattr(existing, field):
                 setattr(existing, field, new_val)
