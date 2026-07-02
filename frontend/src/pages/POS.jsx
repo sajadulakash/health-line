@@ -234,6 +234,8 @@ export default function POS() {
 
   /* ── Cart actions ── */
   const addToCart = (product) => {
+    // Each click adds one strip's worth of units; if no strip size, add 1.
+    const step = product.strip_size && Number(product.strip_size) > 0 ? Number(product.strip_size) : 1;
     setCart((prev) => {
       const existing = prev.find((c) => c.batch_id === product.batch.id);
       if (existing) {
@@ -241,8 +243,9 @@ export default function POS() {
           toast.warning('Maximum available stock reached');
           return prev;
         }
+        const newQty = Math.min(existing.qty + step, product.available);
         return prev.map((c) =>
-          c.batch_id === product.batch.id ? { ...c, qty: c.qty + 1 } : c
+          c.batch_id === product.batch.id ? { ...c, qty: newQty } : c
         );
       }
       return [
@@ -254,7 +257,7 @@ export default function POS() {
           brand: product.brand || '',
           generic_name: product.generic_name || '',
           unit_price: product.sellingPrice,
-          qty: 1,
+          qty: Math.min(step, product.available),
           available: product.available,
         },
       ];
