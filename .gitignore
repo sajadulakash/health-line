@@ -1,38 +1,21 @@
-# Environment
+# Environment (real secrets; .env.example is committed)
 .env
 
 # Python
 __pycache__/
 *.pyc
-*.pyo
-*.egg-info/
-.eggs/
-venv/
-env/
 
-# Node
+# Node / Vite
 node_modules/
 dist/
-build/
-frontend/build/
+*.local
+*.log
 
-# Uploads
+# Runtime-generated
 uploads/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Database
-*.db
-*.sqlite3
-
-# Backups
 backupdb/
 
-# Misc
-run.txt
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

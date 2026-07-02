@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes, createThirdPartySale } from '../api';
+import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes, createThirdPartySale, API_BASE } from '../api';
 import { toast } from 'react-toastify';
 import {
   FiSearch, FiShoppingCart, FiTrash2, FiPlus,
   FiMinus, FiPrinter, FiX, FiTag, FiInfo,
 } from 'react-icons/fi';
 
-const IMG_BASE = 'http://192.168.68.68:8765';
+const IMG_BASE = API_BASE;
 
 /* Pick lowest available batch number with stock > 0 (FIFO) */
 const bestBatch = (batches) => {

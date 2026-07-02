@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// Backend host — configured via frontend/.env (VITE_API_URL). Falls back to
+// the LAN default if the env var is missing. Used for both API calls and image URLs.
+export const API_BASE = import.meta.env.VITE_API_URL || 'http://192.168.68.64:8765';
+
 const API = axios.create({
-  baseURL: 'http://192.168.68.68:8765/api',
+  baseURL: `${API_BASE}/api`,
 });
 
 // ── Medicines ──

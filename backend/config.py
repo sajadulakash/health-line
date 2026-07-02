@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # .env is shared with the frontend (VITE_* vars)
 
 
 @lru_cache()

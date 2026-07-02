@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, correctBatchQuantity, deleteBatch, uploadMedicineImage } from '../api';
+import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, correctBatchQuantity, deleteBatch, uploadMedicineImage, API_BASE } from '../api';
 import { toast } from 'react-toastify';
 import { FiPlus, FiTrash2, FiPackage, FiCamera, FiEdit2, FiSave, FiX, FiMaximize2 } from 'react-icons/fi';
 
@@ -115,7 +115,7 @@ const emptyRow = () => ({
   expiration_date: '',
 });
 
-const IMG_BASE = 'http://192.168.68.68:8765';
+const IMG_BASE = API_BASE;
 
 const DRAFT_KEY = 'stockin_draft';
 

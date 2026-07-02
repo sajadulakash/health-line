@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
-import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives, getMedicineNote, upsertMedicineNote, getAllMedicineNotes } from '../api';
+import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives, getMedicineNote, upsertMedicineNote, getAllMedicineNotes, API_BASE } from '../api';
 import { toast } from 'react-toastify';
 import { FiSearch, FiFilter, FiBox, FiX, FiEdit2, FiTrash2, FiCamera, FiSave, FiLayers, FiInfo } from 'react-icons/fi';
-
-const API_BASE = 'http://192.168.68.68:8765';
 
 /* ─── Detail Modal ─────────────────────────────────────────── */
 function MedicineModal({ medicine, onClose }) {
