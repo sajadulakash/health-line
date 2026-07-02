@@ -13,7 +13,7 @@ const links = [
   { to: '/tp-sales', icon: <FiShoppingCart />, label: 'TP Sales' },
   { to: '/top-selling', icon: <FiTrendingUp />, label: 'Top Selling' },
   { to: '/expiring-soon', icon: <FiAlertTriangle />, label: 'Expiring Soon' },
-  { to: '/fix-batch-count', icon: <FiTool />, label: 'Fix Batch Count' },
+  { to: '/fix-batch-count', icon: <FiTool />, label: 'Fix Strip Count' },
 ];
 
 export default function Sidebar() {
