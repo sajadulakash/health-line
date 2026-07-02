@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Integer, Numeric, Date, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Integer, Numeric, Date, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -14,6 +14,8 @@ class Batch(Base):
     initial_quantity = Column(Integer, nullable=True)
     expiration_date = Column(Date, nullable=True)
     selling_price = Column(Numeric(12, 2), nullable=True)
+    # Set automatically for new batches; existing pre-migration rows stay NULL
+    created_at = Column(DateTime, nullable=True, server_default=func.now())
 
     # Relationships
     medicine = relationship("Medicine", back_populates="batches")

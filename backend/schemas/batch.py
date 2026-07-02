@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 
@@ -36,6 +36,7 @@ class BatchResponse(BaseModel):
     initial_quantity: Optional[int] = None
     expiration_date: Optional[date] = None
     selling_price: Optional[Decimal] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

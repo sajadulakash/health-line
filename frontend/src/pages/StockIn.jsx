@@ -683,12 +683,24 @@ export default function StockIn() {
               + addRows.reduce((s, r) => s + (parseFloat(r.purchase_price) || 0), 0)
             : grouped[bNum].reduce((s, b) => s + (parseFloat(b.purchase_price) || 0), 0);
 
+          // Date the batch was added — earliest created_at in the group.
+          // Pre-migration batches have no date, so nothing is shown for them.
+          const batchDate = grouped[bNum].map((b) => b.created_at).filter(Boolean).sort()[0];
+          const batchDateLabel = batchDate
+            ? new Date(batchDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : null;
+
           return (
             <div key={bNum} className="card" style={{ marginBottom: 14, border: isEditing ? '2px solid #2563eb' : undefined }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                 <FiPackage style={{ color: '#2563eb' }} />
                 <span style={{ fontWeight: 700, color: '#2563eb', fontSize: '0.95rem' }}>Batch #{bNum}</span>
                 <span className="badge badge-success">{grouped[bNum].length} item(s)</span>
+                {batchDateLabel && (
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    📅 Added {batchDateLabel}
+                  </span>
+                )}
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                   {isEditing ? (
                     <>
