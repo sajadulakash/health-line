@@ -314,6 +314,9 @@ export default function StockIn() {
 
   const inputStyle = { padding: '6px 8px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.82rem', boxSizing: 'border-box' };
 
+  // Real-time total purchase price for the new stock entry (sum of all rows)
+  const newEntryTotal = rows.reduce((sum, r) => sum + (parseFloat(r.purchase_price) || 0), 0);
+
   // Unique suggestion lists from existing medicines
   const nameList = [...new Set(medicines.map((m) => m.name).filter(Boolean))];
   const genericList = [...new Set(medicines.map((m) => m.generic_name).filter(Boolean))];
@@ -650,11 +653,17 @@ export default function StockIn() {
             </table>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, gap: 16, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.83rem', color: '#64748b' }}>{rows.length} item(s) — all will share Batch #{nextBatchNum}</span>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Saving…' : `✅ Confirm Stock In — Batch #${nextBatchNum}`}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '4px 16px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 600 }}>Total Purchase:</span>
+                <span style={{ fontSize: '1.05rem', color: '#166534', fontWeight: 800 }}>৳ {newEntryTotal.toFixed(2)}</span>
+              </div>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Saving…' : `✅ Confirm Stock In — Batch #${nextBatchNum}`}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -667,6 +676,12 @@ export default function StockIn() {
       ) : (
         sortedKeys.map((bNum) => {
           const isEditing = editingBatch === bNum;
+
+          // Total purchase price for this batch — live while editing, saved values otherwise
+          const batchTotal = isEditing
+            ? editRows.filter((r) => !r._deleted).reduce((s, r) => s + (parseFloat(r.purchase_price) || 0), 0)
+              + addRows.reduce((s, r) => s + (parseFloat(r.purchase_price) || 0), 0)
+            : grouped[bNum].reduce((s, b) => s + (parseFloat(b.purchase_price) || 0), 0);
 
           return (
             <div key={bNum} className="card" style={{ marginBottom: 14, border: isEditing ? '2px solid #2563eb' : undefined }}>
@@ -931,6 +946,13 @@ export default function StockIn() {
                       })
                     )}
                   </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid #e2e8f0', fontWeight: 700, background: '#f8fafc' }}>
+                      <td colSpan={6} style={{ textAlign: 'right', color: '#475569' }}>Batch Total Purchase:</td>
+                      <td style={{ color: '#166534', fontWeight: 800 }}>৳ {batchTotal.toFixed(2)}</td>
+                      <td colSpan={isEditing ? 4 : 3}></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
 
