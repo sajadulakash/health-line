@@ -541,6 +541,7 @@ export default function POS() {
                       </div>
                       {p.brand && <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: 600 }}>{p.brand}</div>}
                       {p.generic_name && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Generic: </span>{p.generic_name}</div>}
+                      {p.packaging_details && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Packaging Details: </span>{p.packaging_details}</div>}
                       {p.category && (
                         <div style={{ marginTop: 4 }}>
                           <span style={{ background: '#eff6ff', color: '#2563eb', fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 20, border: '1px solid #bfdbfe' }}>{p.category}</span>

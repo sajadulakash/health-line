@@ -50,6 +50,7 @@ function MedicineModal({ medicine, onClose }) {
             <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{medicine.name}</h2>
             {medicine.brand && <div style={{ color: '#2563eb', fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>{medicine.brand}</div>}
             {medicine.generic_name && <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 4 }}><span style={{ fontWeight: 600 }}>Generic: </span>{medicine.generic_name}</div>}
+            {medicine.packaging_details && <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 4 }}><span style={{ fontWeight: 600 }}>Packaging Details: </span>{medicine.packaging_details}</div>}
             {medicine.category && <span style={{ display: 'inline-block', background: '#eff6ff', color: '#2563eb', fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: '1px solid #bfdbfe', marginBottom: 16 }}>{medicine.category}</span>}
             {/* Stats */}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
@@ -122,6 +123,7 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
     generic_name: medicine.generic_name || '',
     brand: medicine.brand || '',
     category: medicine.category || '',
+    packaging_details: medicine.packaging_details || '',
     selling_price: '',
     note: '',
   });
@@ -165,6 +167,7 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
         generic_name: form.generic_name.trim() || null,
         brand: form.brand.trim() || null,
         category: form.category.trim() || null,
+        packaging_details: form.packaging_details.trim() || null,
       });
       // Upload image if changed
       if (imageFile) {
@@ -220,6 +223,10 @@ function EditMedicineModal({ medicine, onClose, onSaved }) {
           <div>
             <label style={labelSt}>Generic Name</label>
             <input value={form.generic_name} onChange={(e) => setForm({ ...form, generic_name: e.target.value })} style={inputSt} />
+          </div>
+          <div>
+            <label style={labelSt}>Packaging Details</label>
+            <textarea value={form.packaging_details} onChange={(e) => setForm({ ...form, packaging_details: e.target.value })} placeholder="Packaging details…" rows={3} style={{ ...inputSt, resize: 'vertical', fontFamily: 'inherit' }} />
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
@@ -559,6 +566,7 @@ export default function Medicines() {
                   </div>
                   {m.brand && <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: 600 }}>{m.brand}</div>}
                   {m.generic_name && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Generic: </span>{m.generic_name}</div>}
+                  {m.packaging_details && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Packaging Details: </span>{m.packaging_details}</div>}
                   {m.category && (
                     <div style={{ marginTop: 4 }}>
                       <span style={{ background: '#eff6ff', color: '#2563eb', fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 20, border: '1px solid #bfdbfe' }}>{m.category}</span>
