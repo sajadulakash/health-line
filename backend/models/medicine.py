@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, String
+from sqlalchemy import Column, BigInteger, Integer, String, Text
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -13,6 +13,7 @@ class Medicine(Base):
     brand = Column(String(120), nullable=True)
     image_url = Column(String(500), nullable=True)
     strip_size = Column(Integer, nullable=True)  # units (e.g. tablets) per strip
+    packaging_details = Column(Text, nullable=True)  # free-text packaging notes (long sentences)
 
     # Relationships
     # Lazy by default — the list endpoint doesn't return batches. Endpoints that

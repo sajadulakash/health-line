@@ -16,6 +16,7 @@ class MedicineCreate(BaseModel):
     brand: Optional[str] = None
     image_url: Optional[str] = None
     strip_size: Optional[int] = None
+    packaging_details: Optional[str] = None
 
     @field_validator("name", "generic_name", "category", "brand", mode="before")
     @classmethod
@@ -30,6 +31,7 @@ class MedicineUpdate(BaseModel):
     brand: Optional[str] = None
     image_url: Optional[str] = None
     strip_size: Optional[int] = None
+    packaging_details: Optional[str] = None
 
     @field_validator("name", "generic_name", "category", "brand", mode="before")
     @classmethod
@@ -45,6 +47,7 @@ class MedicineResponse(BaseModel):
     brand: Optional[str] = None
     image_url: Optional[str] = None
     strip_size: Optional[int] = None
+    packaging_details: Optional[str] = None
 
     class Config:
         from_attributes = True
