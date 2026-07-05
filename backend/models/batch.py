@@ -19,4 +19,5 @@ class Batch(Base):
 
     # Relationships
     medicine = relationship("Medicine", back_populates="batches")
-    sales = relationship("Sale", back_populates="batch", lazy="selectin")
+    # Lazy by default — no response schema serializes a batch's sales.
+    sales = relationship("Sale", back_populates="batch")

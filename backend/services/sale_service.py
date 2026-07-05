@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, cast, Integer
 from typing import List
 
@@ -54,8 +54,10 @@ def create_sale_order(db: Session, data: SaleOrderCreate) -> SaleOrder:
 
 
 def get_sale_orders(db: Session, skip: int = 0, limit: int = 200) -> List[SaleOrder]:
+    # Returned as SaleOrderResponse (includes items) — eager-load items in one query.
     return (
         db.query(SaleOrder)
+        .options(selectinload(SaleOrder.items))
         .order_by(SaleOrder.created_at.desc())
         .offset(skip)
         .limit(limit)

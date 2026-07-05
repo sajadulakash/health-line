@@ -11,5 +11,5 @@ class SaleOrder(Base):
     discount_pct = Column(Numeric(5, 2), default=0)
     created_at = Column(DateTime, server_default=func.now())
 
-    # Relationships
-    items = relationship("Sale", back_populates="sale_order", lazy="selectin")
+    # Relationships — lazy by default; endpoints returning items opt in with selectinload().
+    items = relationship("Sale", back_populates="sale_order")

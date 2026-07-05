@@ -232,6 +232,12 @@ export default function POS() {
     });
   }, [products, search, category]);
 
+  // Progressive rendering — render a chunk and grow as the user scrolls, so the
+  // grid stays fast with thousands of products (all remain reachable by scroll/search).
+  const [visibleCount, setVisibleCount] = useState(60);
+  useEffect(() => { setVisibleCount(60); }, [search, category]);
+  const visibleProducts = filtered.slice(0, visibleCount);
+
   /* ── Cart actions ── */
   const addToCart = (product) => {
     // Each click adds one strip's worth of units; if no strip size, add 1.
@@ -462,14 +468,22 @@ export default function POS() {
       <div style={{ display: 'flex', gap: 14, flex: 1, minHeight: 0 }}>
 
         {/* LEFT: Product grid */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: 2 }}>
+        <div
+          style={{ flex: 1, overflowY: 'auto', paddingRight: 2 }}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight < 500) {
+              setVisibleCount((v) => (v < filtered.length ? v + 60 : v));
+            }
+          }}
+        >
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', paddingTop: 80, fontSize: '0.9rem' }}>
               No in-stock medicines found
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 18 }}>
-              {filtered.map((p) => {
+              {visibleProducts.map((p) => {
                 const inCart = cart.find((c) => c.batch_id === p.batch.id);
                 const lowStock = p.available < 10;
                 return (

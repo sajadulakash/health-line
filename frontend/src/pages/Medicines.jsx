@@ -338,6 +338,20 @@ export default function Medicines() {
     });
   }, [medicines, search, brandFilter, categoryFilter, stockFilter, deferredThreshold, stockMap]);
 
+  // Progressive rendering — render a chunk and grow on scroll so the card grid stays
+  // fast with thousands of medicines (all remain reachable by scrolling/searching).
+  const [visibleCount, setVisibleCount] = useState(60);
+  useEffect(() => { setVisibleCount(60); }, [search, brandFilter, categoryFilter, stockFilter, deferredThreshold]);
+  useEffect(() => {
+    const onScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+        setVisibleCount((v) => (v < filtered.length ? v + 60 : v));
+      }
+    };
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [filtered.length]);
+
   const clearFilters = () => { setSearch(''); setBrandFilter(''); setCategoryFilter(''); setStockFilter(''); setStockThreshold(100); };
 
   const openAlternatives = async (med) => {
@@ -505,7 +519,7 @@ export default function Medicines() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 18 }}>
-          {filtered.map((m) => {
+          {filtered.slice(0, visibleCount).map((m) => {
             const stock = stockMap[m.id] || 0;
             return (
               <div

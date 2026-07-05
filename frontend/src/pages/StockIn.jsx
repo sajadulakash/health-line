@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import ReactDOM from 'react-dom';
 import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, correctBatchQuantity, deleteBatch, uploadMedicineImage, API_BASE } from '../api';
 import { toast } from 'react-toastify';
@@ -307,32 +308,32 @@ export default function StockIn() {
     }
   };
 
-  // Group batches by batch_number for history
-  const grouped = batches.reduce((acc, b) => {
+  // Group batches by batch_number for history (memoized — only recomputes when batches change)
+  const grouped = useMemo(() => batches.reduce((acc, b) => {
     const key = b.batch_number || '?';
     if (!acc[key]) acc[key] = [];
     acc[key].push(b);
     return acc;
-  }, {});
+  }, {}), [batches]);
 
-  const sortedKeys = Object.keys(grouped).sort((a, b) => {
+  const sortedKeys = useMemo(() => Object.keys(grouped).sort((a, b) => {
     const na = parseInt(a), nb = parseInt(b);
     if (!isNaN(na) && !isNaN(nb)) return nb - na;
     return b.localeCompare(a);
-  });
+  }), [grouped]);
 
-  const medicineMap = medicines.reduce((acc, m) => { acc[m.id] = m; return acc; }, {});
+  const medicineMap = useMemo(() => medicines.reduce((acc, m) => { acc[m.id] = m; return acc; }, {}), [medicines]);
 
   const inputStyle = { padding: '6px 8px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.82rem', boxSizing: 'border-box' };
 
   // Real-time total purchase price for the new stock entry (sum of all rows)
   const newEntryTotal = rows.reduce((sum, r) => sum + (parseFloat(r.purchase_price) || 0), 0);
 
-  // Unique suggestion lists from existing medicines
-  const nameList = [...new Set(medicines.map((m) => m.name).filter(Boolean))];
-  const genericList = [...new Set(medicines.map((m) => m.generic_name).filter(Boolean))];
-  const brandList = [...new Set(medicines.map((m) => m.brand).filter(Boolean))];
-  const categoryList = [...new Set(medicines.map((m) => m.category).filter(Boolean))];
+  // Unique suggestion lists from existing medicines (memoized — recompute only when medicines change)
+  const nameList = useMemo(() => [...new Set(medicines.map((m) => m.name).filter(Boolean))], [medicines]);
+  const genericList = useMemo(() => [...new Set(medicines.map((m) => m.generic_name).filter(Boolean))], [medicines]);
+  const brandList = useMemo(() => [...new Set(medicines.map((m) => m.brand).filter(Boolean))], [medicines]);
+  const categoryList = useMemo(() => [...new Set(medicines.map((m) => m.category).filter(Boolean))], [medicines]);
 
   // ── Editing existing batches ──
   const [editingBatch, setEditingBatch] = useState(null); // batchNumber string being edited
@@ -689,7 +690,11 @@ export default function StockIn() {
       {sortedKeys.length === 0 ? (
         <div className="empty-state">No stock entries yet.</div>
       ) : (
-        sortedKeys.map((bNum) => {
+        <Virtuoso
+          useWindowScroll
+          data={sortedKeys}
+          computeItemKey={(_, bNum) => bNum}
+          itemContent={(_, bNum) => {
           const isEditing = editingBatch === bNum;
 
           // Total purchase price for this batch — live while editing, saved values otherwise
@@ -992,7 +997,8 @@ export default function StockIn() {
               )}
             </div>
           );
-        })
+          }}
+        />
       )}
       {/* ── Image Preview Modal ── */}
       {previewImage && ReactDOM.createPortal(

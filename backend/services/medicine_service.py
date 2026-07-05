@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_, func
 from typing import List, Optional
 
@@ -35,7 +35,13 @@ def create_medicine(db: Session, data: MedicineCreate) -> Medicine:
 
 
 def get_medicine(db: Session, medicine_id: int) -> Optional[Medicine]:
-    return db.query(Medicine).filter(Medicine.id == medicine_id).first()
+    # Returned as MedicineWithBatches — eager-load batches for this one medicine.
+    return (
+        db.query(Medicine)
+        .options(selectinload(Medicine.batches))
+        .filter(Medicine.id == medicine_id)
+        .first()
+    )
 
 
 def get_medicines(db: Session, skip: int = 0, limit: int = 100) -> List[Medicine]:
@@ -93,6 +99,7 @@ def find_alternatives(db: Session, medicine_id: int) -> List[Medicine]:
 
     return (
         db.query(Medicine)
+        .options(selectinload(Medicine.batches))
         .filter(Medicine.id != medicine_id, or_(*filters))
         .all()
     )

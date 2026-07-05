@@ -15,4 +15,6 @@ class Medicine(Base):
     strip_size = Column(Integer, nullable=True)  # units (e.g. tablets) per strip
 
     # Relationships
-    batches = relationship("Batch", back_populates="medicine", lazy="selectin", cascade="all, delete-orphan")
+    # Lazy by default — the list endpoint doesn't return batches. Endpoints that
+    # DO return batches (detail, alternatives) opt in with selectinload().
+    batches = relationship("Batch", back_populates="medicine", cascade="all, delete-orphan")

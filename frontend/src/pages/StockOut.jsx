@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { getSaleOrders, createSaleOrder, deleteSaleOrder, updateSaleOrder, getBatches, getMedicines } from '../api';
 import { toast } from 'react-toastify';
 import { FiPlus, FiTrash2, FiSearch, FiX, FiShoppingCart, FiEdit2 } from 'react-icons/fi';
@@ -298,6 +299,18 @@ export default function StockOut() {
 
   useEffect(load, []);
 
+  // Lookup maps built once per data load (replaces per-row linear .find scans)
+  const batchById = useMemo(() => {
+    const m = new Map();
+    batches.forEach((b) => m.set(b.id, b));
+    return m;
+  }, [batches]);
+  const medicineById = useMemo(() => {
+    const m = new Map();
+    medicineList.forEach((med) => m.set(med.id, med));
+    return m;
+  }, [medicineList]);
+
   const updateRow = (index, updates) =>
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...updates } : r)));
 
@@ -445,7 +458,7 @@ export default function StockOut() {
         if (orders.length === 0)
           return <div className="empty-state">No stock-out records yet.</div>;
 
-        return orders.map((order) => {
+        const renderOrder = (order) => {
           const items = order.items || [];
           const totalQty = items.reduce((s, i) => s + (i.quantity_sold || 0), 0);
           const totalRevenue = items.reduce((s, i) => s + (parseFloat(i.sale_price) || 0), 0);
@@ -580,8 +593,8 @@ export default function StockOut() {
                   </thead>
                   <tbody>
                     {items.map((s) => {
-                      const batch = batches.find((b) => b.id === s.batch_id);
-                      const med = batch ? medicineList.find((m) => m.id === batch.medicine_id) : null;
+                      const batch = batchById.get(s.batch_id);
+                      const med = batch ? medicineById.get(batch.medicine_id) : null;
                       return (
                         <tr key={s.id}>
                           <td style={{ fontWeight: 600 }}>{med?.name || (batch ? (medicineMap[batch.medicine_id] || '—') : '—')}</td>
@@ -597,7 +610,16 @@ export default function StockOut() {
               </div>
             </div>
           );
-        });
+        };
+
+        return (
+          <Virtuoso
+            useWindowScroll
+            data={orders}
+            computeItemKey={(_, order) => order.id}
+            itemContent={(_, order) => renderOrder(order)}
+          />
+        );
       })()}
     </>
   );

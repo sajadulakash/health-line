@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from typing import List, Dict, Any
 
@@ -43,6 +43,7 @@ def get_profit_report(
     # Get sale orders in this period
     orders = (
         db.query(SaleOrder)
+        .options(selectinload(SaleOrder.items))
         .filter(SaleOrder.created_at >= start, SaleOrder.created_at <= end)
         .order_by(SaleOrder.created_at.desc())
         .all()
