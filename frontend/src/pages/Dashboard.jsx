@@ -1,6 +1,19 @@
 import { useEffect, useState } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { getMedicines, getBatches, getProfitReport, getInventoryValue } from '../api';
 import { FiChevronDown, FiChevronUp, FiCalendar, FiSearch, FiX } from 'react-icons/fi';
+
+// Native <input type="date"> follows the browser locale (often mm/dd/yyyy).
+// react-datepicker lets us force dd/mm/yyyy. State stays ISO (yyyy-mm-dd) for
+// the API; these helpers convert to/from Date in LOCAL time (no UTC day shift).
+const toISO = (d) =>
+  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+const fromISO = (s) => {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
 
 const PERIODS = [
   { key: 'daily', label: 'Today' },
@@ -210,21 +223,23 @@ function CustomRangeSection() {
         <FiCalendar size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
         <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>Custom Range</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4, flexWrap: 'wrap' }}>
-          <input
-            type="date"
-            value={from}
-            max={to}
-            onChange={(e) => setFrom(e.target.value)}
-            style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', outline: 'none', background: '#f8fafc' }}
+          <DatePicker
+            selected={fromISO(from)}
+            onChange={(d) => setFrom(toISO(d))}
+            maxDate={fromISO(to)}
+            dateFormat="dd/MM/yyyy"
+            className="dp-input"
+            wrapperClassName="dp-wrapper"
           />
           <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>to</span>
-          <input
-            type="date"
-            value={to}
-            min={from}
-            max={today}
-            onChange={(e) => setTo(e.target.value)}
-            style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', outline: 'none', background: '#f8fafc' }}
+          <DatePicker
+            selected={fromISO(to)}
+            onChange={(d) => setTo(toISO(d))}
+            minDate={fromISO(from)}
+            maxDate={fromISO(today)}
+            dateFormat="dd/MM/yyyy"
+            className="dp-input"
+            wrapperClassName="dp-wrapper"
           />
           <button
             onClick={handleApply}

@@ -121,6 +121,13 @@ table tr:hover { background: #f8fafc; }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state svg { font-size: 3rem; margin-bottom: 12px; opacity: 0.3; }
 
+/* react-datepicker input — match the old native date input styling */
+.dp-input {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.83rem; outline: none; background: #f8fafc; width: 120px;
+}
+.dp-input:focus { border-color: var(--primary); }
+
 /* Hide number input spinner arrows */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
