@@ -50,7 +50,7 @@ function MedicineModal({ medicine, onClose }) {
             <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{medicine.name}</h2>
             {medicine.brand && <div style={{ color: '#2563eb', fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>{medicine.brand}</div>}
             {medicine.generic_name && <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 4 }}><span style={{ fontWeight: 600 }}>Generic: </span>{medicine.generic_name}</div>}
-            {medicine.packaging_details && <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 4 }}><span style={{ fontWeight: 600 }}>Packaging Details: </span>{medicine.packaging_details}</div>}
+            {medicine.packaging_details && <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 4 }}><span style={{ fontWeight: 600 }}>Packaging Details:</span><div style={{ whiteSpace: 'pre-line' }}>{medicine.packaging_details}</div></div>}
             {medicine.category && <span style={{ display: 'inline-block', background: '#eff6ff', color: '#2563eb', fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: '1px solid #bfdbfe', marginBottom: 16 }}>{medicine.category}</span>}
             {/* Stats */}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
@@ -566,7 +566,7 @@ export default function Medicines() {
                   </div>
                   {m.brand && <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: 600 }}>{m.brand}</div>}
                   {m.generic_name && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Generic: </span>{m.generic_name}</div>}
-                  {m.packaging_details && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Packaging Details: </span>{m.packaging_details}</div>}
+                  {m.packaging_details && <div style={{ fontSize: '0.78rem', color: '#64748b' }}><span style={{ fontWeight: 600 }}>Packaging Details:</span><div style={{ whiteSpace: 'pre-line' }}>{m.packaging_details}</div></div>}
                   {m.category && (
                     <div style={{ marginTop: 4 }}>
                       <span style={{ background: '#eff6ff', color: '#2563eb', fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 20, border: '1px solid #bfdbfe' }}>{m.category}</span>
