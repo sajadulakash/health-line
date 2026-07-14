@@ -179,6 +179,7 @@ function CustomRangeSection() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleApply = () => {
     if (!from || !to) return;
@@ -191,8 +192,15 @@ function CustomRangeSection() {
   };
 
   const fmt = (v) => `৳${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  const profitColor = data && data.total_profit >= 0 ? '#16a34a' : '#dc2626';
-  const orders = data?.orders || [];
+  const allOrders = data?.orders || [];
+  const query = searchQuery.trim().toLowerCase();
+  const orders = query
+    ? allOrders.filter((o) => (o.items || []).some((it) => it.medicine_name.toLowerCase().includes(query)))
+    : allOrders;
+  const filteredTotals = query
+    ? orders.reduce((acc, o) => ({ buying: acc.buying + o.total_buying, selling: acc.selling + o.total_selling, profit: acc.profit + o.profit }), { buying: 0, selling: 0, profit: 0 })
+    : { buying: data?.total_buying || 0, selling: data?.total_selling || 0, profit: data?.total_profit || 0 };
+  const profitColor = filteredTotals.profit >= 0 ? '#16a34a' : '#dc2626';
   const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
@@ -231,26 +239,46 @@ function CustomRangeSection() {
       {/* Results */}
       {applied && data && (
         <>
+          {/* Medicine search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+            <FiSearch size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Search by medicine name…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ flex: 1, padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: '0.83rem', outline: 'none', background: '#f8fafc' }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, display: 'flex' }}
+              >
+                <FiX size={16} />
+              </button>
+            )}
+          </div>
+
           <div
             onClick={() => setExpanded(!expanded)}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', borderTop: '1px solid #f1f5f9', paddingTop: 14 }}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
           >
             <h3 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}>
               {fmtDate(from)} — {fmtDate(to)}
-              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>({data.order_count} order{data.order_count !== 1 ? 's' : ''})</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>({orders.length} order{orders.length !== 1 ? 's' : ''}){query && ' — filtered'}</span>
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Buying</div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(data.total_buying)}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(filteredTotals.buying)}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Selling</div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(data.total_selling)}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{fmt(filteredTotals.selling)}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Profit</div>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: profitColor }}>{fmt(data.total_profit)}</div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: profitColor }}>{fmt(filteredTotals.profit)}</div>
               </div>
               <span style={{ color: '#94a3b8', marginLeft: 4 }}>{expanded ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}</span>
             </div>
