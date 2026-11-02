@@ -25,17 +25,23 @@ def get_batches(
     medicine_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
+    in_stock: bool = False,
 ) -> List[Batch]:
-    """Get batches sorted by soonest expiration date."""
+    """Get batches sorted by soonest expiration date.
+
+    With in_stock=True, only batches with quantity > 0 are returned and the
+    row limit is not applied, so callers that sell stock (POS) always get
+    every sellable batch.
+    """
     query = db.query(Batch)
     if medicine_id:
         query = query.filter(Batch.medicine_id == medicine_id)
-    return (
-        query.order_by(Batch.expiration_date.asc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    if in_stock:
+        query = query.filter(Batch.quantity > 0)
+    query = query.order_by(Batch.expiration_date.asc()).offset(skip)
+    if not in_stock:
+        query = query.limit(limit)
+    return query.all()
 
 
 def get_expiring_soon(db: Session, days: int = 90, limit: int = 50) -> List[Batch]:

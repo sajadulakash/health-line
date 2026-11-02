@@ -19,10 +19,11 @@ def list_batches(
     medicine_id: Optional[int] = Query(None, description="Filter by medicine"),
     skip: int = 0,
     limit: int = 10000,
+    in_stock: bool = Query(False, description="Only batches with quantity > 0; ignores limit"),
     db: Session = Depends(get_db),
 ):
     """List batches sorted by soonest expiration date."""
-    return batch_service.get_batches(db, medicine_id=medicine_id, skip=skip, limit=limit)
+    return batch_service.get_batches(db, medicine_id=medicine_id, skip=skip, limit=limit, in_stock=in_stock)
 
 
 @router.get("/expiring-soon", response_model=List[BatchResponse])

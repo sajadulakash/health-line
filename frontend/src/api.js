@@ -36,6 +36,9 @@ export const getMedicineStock = () => API.get('/medicines/stock/all');
 // ── Batches ──
 export const getBatches = (medicineId) =>
   API.get('/batches/', { params: medicineId ? { medicine_id: medicineId } : {} });
+// Every batch with quantity > 0 — no row limit (used by POS)
+export const getInStockBatches = () =>
+  API.get('/batches/', { params: { in_stock: true } });
 export const createBatch = (data) => API.post('/batches/', data);
 export const updateBatch = (id, data) => API.put(`/batches/${id}`, data);
 export const correctBatchQuantity = (id, newInitialQuantity) =>

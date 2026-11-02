@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMedicines, getBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes, createThirdPartySale, API_BASE } from '../api';
+import { getMedicines, getInStockBatches, createSaleOrder, createMedicine, createBatch, getAllMedicineNotes, createThirdPartySale, API_BASE } from '../api';
 import { toast } from 'react-toastify';
 import {
   FiSearch, FiShoppingCart, FiTrash2, FiPlus,
@@ -171,7 +171,9 @@ export default function POS() {
   };
 
   const loadData = () =>
-    Promise.all([getMedicines(), getBatches(), getAllMedicineNotes()])
+    // In-stock batches only, uncapped — the full batch list is limited to
+    // 10,000 rows, which hid some in-stock medicines from POS.
+    Promise.all([getMedicines(), getInStockBatches(), getAllMedicineNotes()])
       .then(([mRes, bRes, nRes]) => {
         setMedicines(mRes.data);
         setBatches(bRes.data);
