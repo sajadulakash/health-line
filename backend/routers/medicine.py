@@ -32,6 +32,21 @@ def get_all_notes(user_id: int = 1, db: Session = Depends(get_db)):
     return {row.medicine_id: row.note for row in rows if row.note}
 
 
+@router.get("/stock/all")
+def get_all_stock(db: Session = Depends(get_db)):
+    """Read-only: total current stock per medicine, summed in SQL across all batches.
+    Unlike GET /api/batches/, this is not subject to a row limit."""
+    from sqlalchemy import func
+    from backend.models.batch import Batch
+    rows = (
+        db.query(Batch.medicine_id, func.coalesce(func.sum(Batch.quantity), 0))
+        .filter(Batch.medicine_id.isnot(None))
+        .group_by(Batch.medicine_id)
+        .all()
+    )
+    return {medicine_id: int(total) for medicine_id, total in rows}
+
+
 @router.get("/{medicine_id}", response_model=MedicineWithBatches)
 def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
     medicine = medicine_service.get_medicine(db, medicine_id)

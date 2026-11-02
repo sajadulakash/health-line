@@ -25,6 +25,8 @@ export const getMedicineNote = (id) => API.get(`/medicines/${id}/note`);
 export const upsertMedicineNote = (id, note) =>
   API.put(`/medicines/${id}/note`, { note });
 export const getAllMedicineNotes = () => API.get('/medicines/notes/all');
+// { medicine_id: total_stock } — summed server-side, no row limit
+export const getMedicineStock = () => API.get('/medicines/stock/all');
 
 // ── Batches ──
 export const getBatches = (medicineId) =>

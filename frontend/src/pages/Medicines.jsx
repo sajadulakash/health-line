@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
-import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives, getMedicineNote, upsertMedicineNote, getAllMedicineNotes, API_BASE } from '../api';
+import { getMedicines, getBatches, getSales, updateMedicine, deleteMedicine, uploadMedicineImage, updateSellingPrice, getAlternatives, getMedicineNote, upsertMedicineNote, getAllMedicineNotes, getMedicineStock, API_BASE } from '../api';
 import { toast } from 'react-toastify';
 import { FiSearch, FiFilter, FiBox, FiX, FiEdit2, FiTrash2, FiCamera, FiSave, FiLayers, FiInfo } from 'react-icons/fi';
 
@@ -285,16 +285,12 @@ export default function Medicines() {
   const deferredThreshold = useDeferredValue(stockThreshold);
 
   const loadData = () =>
-    Promise.all([getMedicines(), getBatches(), getAllMedicineNotes()])
-      .then(([mRes, bRes, nRes]) => {
+    Promise.all([getMedicines(), getMedicineStock(), getAllMedicineNotes()])
+      .then(([mRes, sRes, nRes]) => {
         setMedicines(mRes.data);
-        const sm = {};
-        bRes.data.forEach((b) => {
-          if (b.medicine_id != null) {
-            sm[b.medicine_id] = (sm[b.medicine_id] || 0) + (b.quantity || 0);
-          }
-        });
-        setStockMap(sm);
+        // Per-medicine totals summed server-side (the full batch list is capped
+        // at 10,000 rows, which made some in-stock medicines show as 0).
+        setStockMap(sRes.data || {});
         setNoteMap(nRes.data || {});
       })
       .catch(() => toast.error('Failed to load medicines'))
