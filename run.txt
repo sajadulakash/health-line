@@ -1,0 +1,5 @@
+conda activate healthline && cd /home/sajadulakash/Desktop/healthline && uvicorn backend.main:app --host 0.0.0.0 --port 8765 --reload
+
+cd /home/sajadulakash/Desktop/healthline/frontend && npm run dev -- --host 0.0.0.0
+
+python -m backend.backup_db 

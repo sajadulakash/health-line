@@ -1,8 +1,13 @@
 import axios from 'axios';
 
-// Backend host — configured via frontend/.env (VITE_API_URL). Falls back to
-// the LAN default if the env var is missing. Used for both API calls and image URLs.
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://192.168.68.64:8765';
+// Backend host — configured via VITE_API_URL. If unset, use the same hostname
+// that served the frontend and the backend's fixed port.
+const defaultApiBase =
+  typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:8765`
+    : 'http://localhost:8765';
+
+export const API_BASE = import.meta.env.VITE_API_URL || defaultApiBase;
 
 const API = axios.create({
   baseURL: `${API_BASE}/api`,
