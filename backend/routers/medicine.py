@@ -47,6 +47,25 @@ def get_all_stock(db: Session = Depends(get_db)):
     return {medicine_id: int(total) for medicine_id, total in rows}
 
 
+@router.get("/selling-price/latest")
+def get_latest_selling_prices(db: Session = Depends(get_db)):
+    """Read-only: selling price of each medicine's most recently stocked-in batch
+    (highest batch id with a price > 0). Not subject to a row limit."""
+    from sqlalchemy import func
+    from backend.models.batch import Batch
+    latest_ids = (
+        db.query(func.max(Batch.id))
+        .filter(Batch.medicine_id.isnot(None), Batch.selling_price > 0)
+        .group_by(Batch.medicine_id)
+    )
+    rows = (
+        db.query(Batch.medicine_id, Batch.selling_price)
+        .filter(Batch.id.in_(latest_ids))
+        .all()
+    )
+    return {medicine_id: float(price) for medicine_id, price in rows}
+
+
 @router.get("/{medicine_id}", response_model=MedicineWithBatches)
 def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
     medicine = medicine_service.get_medicine(db, medicine_id)

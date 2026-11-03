@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import ReactDOM from 'react-dom';
-import { getMedicines, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, correctBatchQuantity, deleteBatch, uploadMedicineImage, API_BASE } from '../api';
+import { getMedicines, getLatestSellingPrices, createMedicine, updateMedicine, createBatch, getBatches, updateBatch, correctBatchQuantity, deleteBatch, uploadMedicineImage, API_BASE } from '../api';
 import { toast } from 'react-toastify';
 import { FiPlus, FiTrash2, FiPackage, FiCamera, FiEdit2, FiSave, FiX, FiMaximize2 } from 'react-icons/fi';
 
@@ -132,6 +132,8 @@ const loadDraft = () => {
 export default function StockIn() {
   const [medicines, setMedicines] = useState([]);
   const [batches, setBatches] = useState([]);
+  // { medicine_id: selling_price } of each medicine's newest batch (not row-limited)
+  const [latestPrices, setLatestPrices] = useState({});
   const [nextBatchNum, setNextBatchNum] = useState(1);
   const [rows, setRows] = useState(loadDraft);
   const [submitting, setSubmitting] = useState(false);
@@ -155,6 +157,9 @@ export default function StockIn() {
           .filter((n) => !isNaN(n));
         setNextBatchNum(nums.length > 0 ? Math.max(...nums) + 1 : 1);
       })
+      .catch(() => {});
+    getLatestSellingPrices()
+      .then((res) => setLatestPrices(res.data))
       .catch(() => {});
   };
 
@@ -187,9 +192,11 @@ export default function StockIn() {
       strip_size: found ? (found.strip_size ?? '') : rows[i].strip_size,
     };
     if (found) {
-      const medBatches = batches.filter((b) => b.medicine_id === found.id && b.selling_price);
-      if (medBatches.length > 0) {
-        updates.selling_price = medBatches[medBatches.length - 1].selling_price;
+      // Price from the medicine's newest batch, fetched server-side so it is
+      // not affected by the 10,000-row cap on the batch list.
+      const price = latestPrices[found.id];
+      if (price) {
+        updates.selling_price = price;
       }
     }
     updateRow(i, updates);
